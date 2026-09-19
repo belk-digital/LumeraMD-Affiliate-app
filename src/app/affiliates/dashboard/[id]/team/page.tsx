@@ -35,6 +35,7 @@ export default async function TeamPage({
       affiliateEmail={affiliate.userEmail}
       displayName={affiliate.displayName}
       referralLink={referralLink}
+      discountCode={affiliate.shopifyDiscountCode}
     >
       <div className="space-y-6 p-4 md:p-6">
         <div className="animate-fade-up">

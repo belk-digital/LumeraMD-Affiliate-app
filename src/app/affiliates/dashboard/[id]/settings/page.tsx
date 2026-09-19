@@ -31,6 +31,7 @@ export default async function SettingsPage({
       affiliateEmail={affiliate.userEmail}
       displayName={affiliate.displayName}
       referralLink={referralLink}
+      discountCode={affiliate.shopifyDiscountCode}
     >
       <div className="px-4 sm:px-6 py-6 space-y-6 max-w-2xl">
         <div>

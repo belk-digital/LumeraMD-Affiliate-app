@@ -13,12 +13,14 @@ export default function DashboardShell({
   affiliateEmail,
   displayName,
   referralLink,
+  discountCode = null,
   children,
 }: {
   affiliateId: string;
   affiliateEmail?: string;
   displayName?: string | null;
   referralLink: string;
+  discountCode?: string | null;
   children: React.ReactNode;
 }) {
   const [copied, setCopied] = useState(false);
@@ -117,7 +119,11 @@ export default function DashboardShell({
               </svg>
             )}
           </button>
-          <ShareButton referralLink={referralLink} />
+          <ShareButton
+            affiliateId={affiliateId}
+            referralLink={referralLink}
+            discountCode={discountCode}
+          />
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
             <Suspense fallback={null}>
               <RangeSelect basePath={base} />
