@@ -40,8 +40,23 @@ export async function GET(
 
   await updateAffiliateStats(affiliate.id);
 
+  // The cookies below live on this app's domain, which the storefront can't read. So the store
+  // gets the tracking values in the URL instead: the theme snippet (shopify/affiliate-tracking.liquid)
+  // keeps them on the store's own domain and writes them onto the cart, and they arrive on the
+  // order as note attributes (affiliate_ref / affiliate_click_id).
+  const landing = new URL("/", destination);
+  landing.searchParams.set("ref", affiliate.id);
+  landing.searchParams.set("cid", click.id);
+  landing.searchParams.set("d", String(affiliate.cookieDurationDays));
+  const landingPath = landing.pathname + landing.search;
+
   if (affiliate.shopifyDiscountCode) {
+    // Shopify applies the code, then sends the shopper on to the landing path.
     destination.pathname = "/discount/" + affiliate.shopifyDiscountCode;
+    destination.searchParams.set("redirect", landingPath);
+  } else {
+    destination.pathname = landing.pathname;
+    destination.search = landing.search;
   }
 
   const res = NextResponse.redirect(destination);

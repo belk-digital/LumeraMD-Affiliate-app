@@ -33,7 +33,10 @@ function computeCommission(affiliate: Affiliate, order: ShopifyOrderInput) {
 
 async function findAffiliateByCookie(cookieAffiliateId: string | null) {
   if (!cookieAffiliateId) return null;
-  return prisma.affiliate.findUnique({ where: { id: cookieAffiliateId } });
+  // The value comes from a cart attribute, which a shopper can edit, so only trust a real,
+  // approved affiliate.
+  const affiliate = await prisma.affiliate.findUnique({ where: { id: cookieAffiliateId } });
+  return affiliate && affiliate.status === "approved" ? affiliate : null;
 }
 
 async function findAffiliateByDiscountCode(codes: string[]) {
@@ -71,9 +74,11 @@ export async function attributeOrder(params: {
   // One-shot attribution: a referral-link click can only convert once.
   let attributionClickId: string | null = null;
   if (attributionSource !== "coupon_code" && cookieClickId) {
-    const click = await prisma.affiliateClick.findUnique({
+    const found = await prisma.affiliateClick.findUnique({
       where: { id: cookieClickId },
     });
+    // Ignore a click id that belongs to a different affiliate than the one being credited.
+    const click = found && found.affiliateId === affiliate.id ? found : null;
     if (click && !click.convertedToOrder) {
       attributionClickId = click.id;
     } else if (click && click.convertedToOrder && !byCoupon) {

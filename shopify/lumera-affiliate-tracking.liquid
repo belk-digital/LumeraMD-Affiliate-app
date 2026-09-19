@@ -1,0 +1,73 @@
+{% comment %}
+  LumeraMD affiliate tracking
+
+  What it does
+    1. When a shopper arrives from an affiliate link, the URL carries ?ref=<affiliate>&cid=<click>&d=<days>.
+       The snippet remembers those on THIS store's domain for <days> days (default 30).
+    2. It makes sure the shopper's cart carries them as cart attributes (affiliate_ref and
+       affiliate_click_id). Shopify passes cart attributes through to the order, where the
+       affiliate app reads them to credit the sale.
+
+  What it does NOT do
+    It never touches prices, discounts, the cart contents or checkout. It only adds two
+    attributes to the cart, and any failure is swallowed so it can never break a page.
+
+  Install (see shopify/README.md): Online Store > Themes > ... > Edit code > Snippets > Add a
+  new snippet named "lumera-affiliate-tracking", paste this file, then add
+      {% render 'lumera-affiliate-tracking' %}
+  just before </body> in layout/theme.liquid.
+{% endcomment %}
+<script>
+  (function () {
+    try {
+      var KEY = 'lumera_affiliate';
+      var ID = /^[A-Za-z0-9_-]{8,64}$/;
+      var params = new URLSearchParams(window.location.search);
+      var ref = params.get('ref');
+      var cid = params.get('cid');
+
+      // A fresh affiliate link replaces whatever was stored before (last click wins).
+      if (ref && ID.test(ref)) {
+        var days = parseInt(params.get('d'), 10);
+        if (!(days > 0 && days <= 365)) days = 30;
+        localStorage.setItem(
+          KEY,
+          JSON.stringify({
+            ref: ref,
+            cid: cid && ID.test(cid) ? cid : '',
+            exp: Date.now() + days * 24 * 60 * 60 * 1000,
+          })
+        );
+      }
+
+      var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (!saved || !saved.ref || saved.exp < Date.now()) {
+        if (saved) localStorage.removeItem(KEY);
+        return;
+      }
+
+      // Only write to the cart when it doesn't already carry these values, so this costs one
+      // small read per page and a write only when something is missing or changed.
+      fetch('/cart.js', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (cart) {
+          var attrs = (cart && cart.attributes) || {};
+          if (
+            attrs.affiliate_ref === saved.ref &&
+            (attrs.affiliate_click_id || '') === saved.cid
+          ) {
+            return;
+          }
+          return fetch('/cart/update.js', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              attributes: { affiliate_ref: saved.ref, affiliate_click_id: saved.cid },
+            }),
+          });
+        })
+        .catch(function () {});
+    } catch (e) {}
+  })();
+</script>
