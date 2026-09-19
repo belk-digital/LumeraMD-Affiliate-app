@@ -1,0 +1,243 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AffiliateStatus {
+  pending
+  approved
+  rejected
+  suspended
+}
+
+enum CommissionType {
+  percent
+  fixed
+}
+
+enum CommissionOn {
+  subtotal_before_coupon
+  subtotal_after_coupon
+}
+
+enum ClickSource {
+  referral_link
+  coupon_code_attempt
+}
+
+enum AttributionSource {
+  referral_link
+  coupon_code
+  both
+}
+
+enum ConversionStatus {
+  pending
+  approved
+  paid
+  reversed
+  voided
+}
+
+enum PayoutStatus {
+  pending
+  approved
+  paid
+  rejected
+}
+
+model Affiliate {
+  id                    String            @id @default(cuid())
+  userEmail             String            @unique
+  displayName           String?
+  emailNotifications    Boolean           @default(true)
+  status                AffiliateStatus   @default(pending)
+  referralSlug          String            @unique
+  shopifyDiscountCode   String?           @unique
+  commissionRate        Float             @default(10)
+  commissionType        CommissionType    @default(percent)
+  commissionOn          CommissionOn      @default(subtotal_after_coupon)
+  cookieDurationDays     Int              @default(30)
+  pendingPeriodDays      Int              @default(30)
+  minimumPayoutThreshold Float            @default(50)
+  payoutMethod          String?
+  payoutDetails         Json?
+
+  parentAffiliateId     String?
+  parentAffiliate       Affiliate?        @relation("AffiliateTeam", fields: [parentAffiliateId], references: [id])
+  subAffiliates         Affiliate[]       @relation("AffiliateTeam")
+  parentOverrideRate    Float?
+
+  flaggedForReview      Boolean           @default(false)
+  fraudScore            Int               @default(0)
+  fraudNotes            String?
+
+  totalClicks           Int               @default(0)
+  totalConversions      Int               @default(0)
+  totalCommissionEarned   Float           @default(0)
+  totalCommissionPending  Float           @default(0)
+  totalCommissionApproved Float           @default(0)
+  totalCommissionPaid     Float           @default(0)
+
+  clicks                AffiliateClick[]
+  conversions           AffiliateConversion[] @relation("AffiliateConversions")
+  parentConversions      AffiliateConversion[] @relation("ParentOverrideConversions")
+  payouts               AffiliatePayout[]
+  notifications         Notification[]
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@map("affiliates")
+}
+
+model AffiliateClick {
+  id                String            @id @default(cuid())
+  affiliateId       String
+  affiliate         Affiliate         @relation(fields: [affiliateId], references: [id])
+  source            ClickSource       @default(referral_link)
+  ipHash            String?
+  deviceType        String?
+  referrer          String?
+  sessionId         String?
+  convertedToOrder  Boolean           @default(false)
+  conversionId      String?           @unique
+  isSuspicious      Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+
+  @@index([affiliateId])
+  @@map("affiliate_clicks")
+}
+
+model AffiliateConversion {
+  id                    String            @id @default(cuid())
+  affiliateId           String
+  affiliate             Affiliate         @relation("AffiliateConversions", fields: [affiliateId], references: [id])
+
+  shopifyOrderId        String            @unique
+  shopifyOrderName      String?
+
+  attributionSource     AttributionSource
+  attributionClickId    String?
+
+  orderSubtotal         Float
+  orderDiscount         Float             @default(0)
+  eligibleSubtotal      Float
+  commissionRate        Float
+  commissionAmount      Float
+
+  parentAffiliateId     String?
+  parentAffiliate       Affiliate?        @relation("ParentOverrideConversions", fields: [parentAffiliateId], references: [id])
+  parentCommissionRate  Float?
+  parentCommissionAmount Float?
+
+  status                ConversionStatus  @default(pending)
+  pendingUntil          DateTime?
+  reversedReason        String?
+
+  selfReferralDetected  Boolean           @default(false)
+  ipMatchesAffiliate    Boolean           @default(false)
+  fraudScore            Int               @default(0)
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([affiliateId])
+  @@map("affiliate_conversions")
+}
+
+model AffiliatePayout {
+  id                String            @id @default(cuid())
+  affiliateId       String
+  affiliate         Affiliate         @relation(fields: [affiliateId], references: [id])
+  conversionIds     String[]
+  amount            Float
+  currency          String            @default("USD")
+  status            PayoutStatus      @default(pending)
+  payoutMethod      String?
+  payoutDetails     Json?
+  transactionId     String?
+  notes             String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([affiliateId])
+  @@map("affiliate_payouts")
+}
+
+model AffiliateApplication {
+  id                    String            @id @default(cuid())
+  displayName           String
+  email                 String
+  websiteUrl            String?
+  socialLinks           Json?
+  promotionMethods      String?
+  estimatedMonthlyReach String?
+  niche                 String?
+  agreedToTerms         Boolean           @default(false)
+  referredByAffiliateId String?
+  status                AffiliateStatus   @default(pending)
+  reviewNotes           String?
+  linkedAffiliateId     String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@map("affiliate_applications")
+}
+
+model AdminLoginToken {
+  id        String    @id @default(cuid())
+  email     String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("admin_login_tokens")
+}
+
+model AffiliateLoginToken {
+  id          String    @id @default(cuid())
+  affiliateId String
+  token       String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("affiliate_login_tokens")
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  affiliateId String
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id])
+  type        String
+  title       String
+  body        String?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([affiliateId, createdAt])
+  @@map("notifications")
+}
+
+model AffiliateSettings {
+  id                            String   @id @default("global")
+  defaultCommissionRate         Float    @default(10)
+  defaultCommissionType         CommissionType @default(percent)
+  defaultCommissionOn           CommissionOn   @default(subtotal_after_coupon)
+  defaultCookieDurationDays     Int      @default(30)
+  defaultPendingPeriodDays      Int      @default(30)
+  defaultMinimumPayoutThreshold Float    @default(50)
+  defaultParentOverrideRate     Float    @default(3)
+  updatedAt                     DateTime @updatedAt
+
+  @@map("affiliate_settings")
+}
