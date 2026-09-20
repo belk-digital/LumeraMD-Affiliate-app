@@ -38,6 +38,12 @@ const MAIN_NAV: NavItem[] = [
     icon: "cursor",
     isActive: (p) => p.startsWith("/admin/clicks"),
   },
+  {
+    href: "/admin/reports",
+    label: "Reports",
+    icon: "chart",
+    isActive: (p) => p.startsWith("/admin/reports"),
+  },
 ];
 
 const BOTTOM_NAV: NavItem[] = [

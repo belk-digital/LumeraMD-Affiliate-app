@@ -59,8 +59,10 @@ model Affiliate {
   displayName           String?
   emailNotifications    Boolean           @default(true)
   status                AffiliateStatus   @default(pending)
+  suspendReason         String?
   referralSlug          String            @unique
   shopifyDiscountCode   String?           @unique
+  shopifyDiscountValue  Float             @default(10)
   commissionRate        Float             @default(10)
   commissionType        CommissionType    @default(percent)
   commissionOn          CommissionOn      @default(subtotal_after_coupon)

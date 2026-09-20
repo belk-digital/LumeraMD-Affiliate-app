@@ -1,15 +1,77 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import StatusPill from "@/components/StatusPill";
-import { formatMoney } from "@/lib/format";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import DashboardShell from "../DashboardShell";
-import { Card, Table, fmtDate } from "../ui";
+import { AffiliateConversionsClient } from "./AffiliateConversionsClient";
+
+export const dynamic = "force-dynamic";
+
+async function getCountStatWithTrend(whereClause: any = {}) {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+  const total = await prisma.affiliateConversion.count({ where: whereClause });
+  
+  const current30 = await prisma.affiliateConversion.count({
+    where: { ...whereClause, createdAt: { gte: thirtyDaysAgo } }
+  });
+  
+  const previous30 = await prisma.affiliateConversion.count({
+    where: { ...whereClause, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }
+  });
+
+  let trend = 0;
+  if (previous30 === 0) {
+    trend = current30 > 0 ? 100 : 0;
+  } else {
+    trend = Math.round(((current30 - previous30) / previous30) * 100);
+  }
+
+  return { total, trend, count: total };
+}
+
+async function getSumStatWithTrend(whereClause: any = {}) {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+  const totalAgg = await prisma.affiliateConversion.aggregate({
+    where: whereClause,
+    _sum: { commissionAmount: true },
+    _count: { id: true }
+  });
+  const total = totalAgg._sum.commissionAmount || 0;
+  const count = totalAgg._count.id || 0;
+  
+  const current30Agg = await prisma.affiliateConversion.aggregate({
+    where: { ...whereClause, createdAt: { gte: thirtyDaysAgo } },
+    _sum: { commissionAmount: true }
+  });
+  const current30 = current30Agg._sum.commissionAmount || 0;
+  
+  const previous30Agg = await prisma.affiliateConversion.aggregate({
+    where: { ...whereClause, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
+    _sum: { commissionAmount: true }
+  });
+  const previous30 = previous30Agg._sum.commissionAmount || 0;
+
+  let trend = 0;
+  if (previous30 === 0) {
+    trend = current30 > 0 ? 100 : 0;
+  } else {
+    trend = Math.round(((current30 - previous30) / previous30) * 100);
+  }
+
+  return { total, trend, count };
+}
 
 export default async function ConversionsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { id } = await params;
   await requireAffiliateAccess(id);
@@ -17,11 +79,70 @@ export default async function ConversionsPage({
   const affiliate = await prisma.affiliate.findUnique({ where: { id } });
   if (!affiliate) notFound();
 
-  const conversions = await prisma.affiliateConversion.findMany({
-    where: { affiliateId: id },
+  const sp = await searchParams;
+  const rawQuery = sp.q;
+  const q = (typeof rawQuery === "string" ? rawQuery : "").trim();
+  
+  const rawStatus = sp.status;
+  const status = typeof rawStatus === "string" && rawStatus !== "all" ? rawStatus : undefined;
+
+  const rawPage = sp.page;
+  const page = typeof rawPage === "string" ? parseInt(rawPage, 10) || 1 : 1;
+  const pageSize = 20;
+
+  // Build dynamic where clause for this specific affiliate
+  const where: any = { affiliateId: id };
+  
+  if (q) {
+    where.OR = [
+      { shopifyOrderName: { contains: q, mode: "insensitive" } },
+      { shopifyOrderId: { contains: q, mode: "insensitive" } },
+    ];
+  }
+  
+  if (status) {
+    where.status = status;
+  }
+
+  // Fetch paginated conversions
+  const conversionsPromise = prisma.affiliateConversion.findMany({
+    where,
     orderBy: { createdAt: "desc" },
-    take: 200,
+    skip: (page - 1) * pageSize,
+    take: pageSize,
   });
+
+  // Fetch total count for pagination
+  const totalFilteredPromise = prisma.affiliateConversion.count({ where });
+
+  // Fetch summary stats
+  const totalOrdersPromise = getCountStatWithTrend({ affiliateId: id });
+  const totalCommissionPromise = getSumStatWithTrend({ affiliateId: id });
+  const pendingCommissionPromise = getSumStatWithTrend({ affiliateId: id, status: "pending" });
+  const paidCommissionPromise = getSumStatWithTrend({ affiliateId: id, status: "paid" });
+
+  const [
+    conversions, 
+    totalFiltered, 
+    totalOrders, 
+    totalCommission, 
+    pendingCommission,
+    paidCommission
+  ] = await Promise.all([
+    conversionsPromise,
+    totalFilteredPromise,
+    totalOrdersPromise,
+    totalCommissionPromise,
+    pendingCommissionPromise,
+    paidCommissionPromise
+  ]);
+
+  const stats = {
+    totalOrders,
+    totalCommission,
+    pendingCommission,
+    paidCommission,
+  };
 
   const referralLink = `${process.env.APP_BASE_URL ?? ""}/ref/${affiliate.referralSlug}`;
 
@@ -33,29 +154,18 @@ export default async function ConversionsPage({
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
     >
-      <div className="space-y-6 p-4 md:p-6">
-        <div className="animate-fade-up">
-          <h1 className="font-heading text-2xl font-semibold text-ink">Conversions</h1>
-          <p className="mt-1 text-sm text-ink/60">
-            Every order credited to you through your link or discount code.
-          </p>
-        </div>
-
-        <Card title="All conversions" delay={100}>
-          <Table
-            headers={["Order", "Status", "Commission", "Date"]}
-            empty="No conversions yet — share your link to get started."
-            rows={conversions.map((c) => [
-              <span key="o" className="font-medium text-ink">
-                {c.shopifyOrderName ?? "—"}
-              </span>,
-              <StatusPill key="s" status={c.status} />,
-              formatMoney(c.commissionAmount),
-              fmtDate(c.createdAt),
-            ])}
-          />
-        </Card>
-      </div>
+      <AffiliateConversionsClient 
+        affiliateId={affiliate.id}
+        referralLink={referralLink}
+        discountCode={affiliate.shopifyDiscountCode}
+        initialConversions={conversions}
+        totalFiltered={totalFiltered}
+        page={page}
+        pageSize={pageSize}
+        stats={stats}
+        searchQuery={q}
+        currentStatus={status || "all"}
+      />
     </DashboardShell>
   );
 }

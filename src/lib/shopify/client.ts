@@ -115,3 +115,42 @@ export async function registerWebhook(topic: string, address: string) {
     }),
   });
 }
+
+export async function deleteDiscountCodeByString(code: string) {
+  const query = `
+    query getDiscountByCode($code: String!) {
+      codeDiscountNodeByCode(code: $code) {
+        id
+      }
+    }
+  `;
+  const result = await shopifyGraphQL<{
+    codeDiscountNodeByCode: { id: string } | null;
+  }>(query, { code });
+
+  const id = result.codeDiscountNodeByCode?.id;
+  if (!id) return false;
+
+  const mutation = `
+    mutation discountCodeDelete($id: ID!) {
+      discountCodeDelete(id: $id) {
+        deletedCodeDiscountId
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+  const delResult = await shopifyGraphQL<{
+    discountCodeDelete: {
+      deletedCodeDiscountId: string | null;
+      userErrors: any[];
+    };
+  }>(mutation, { id });
+
+  if (delResult.discountCodeDelete.userErrors.length > 0) {
+    throw new Error(`Delete failed: ${JSON.stringify(delResult.discountCodeDelete.userErrors)}`);
+  }
+  return true;
+}

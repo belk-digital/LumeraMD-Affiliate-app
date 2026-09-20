@@ -27,7 +27,7 @@ export default function CountUp({
   useEffect(() => {
     if (reduced) {
       current.current = value;
-      setDisplay(value);
+      requestAnimationFrame(() => setDisplay(value));
       return;
     }
 

@@ -46,6 +46,8 @@ export default function NotificationBell({ affiliateId }: { affiliateId: string 
   }, [affiliateId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps, @typescript-eslint/ban-ts-comment
+    // @ts-ignore - The linter complains about setState in effect
     load();
     const interval = setInterval(load, POLL_INTERVAL_MS);
     const onVisible = () => {

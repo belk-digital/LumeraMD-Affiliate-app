@@ -61,7 +61,7 @@ export async function attributeOrder(params: {
   const byCoupon = await findAffiliateByDiscountCode(order.discountCodes);
   const byCookie = await findAffiliateByCookie(cookieAffiliateId);
 
-  let affiliate = byCoupon ?? byCookie;
+  const affiliate = byCoupon ?? byCookie;
   if (!affiliate) return null;
 
   let attributionSource: "referral_link" | "coupon_code" | "both" = byCoupon

@@ -8,6 +8,8 @@ interface Values {
   payoutMethod: string;
   payoutDestination: string;
   emailNotifications: boolean;
+  referralSlug: string;
+  shopifyDiscountCode: string;
 }
 
 const inputClass =
@@ -36,13 +38,9 @@ function Section({
 
 export default function SettingsForm({
   email,
-  referralSlug,
-  discountCode,
   initial,
 }: {
   email: string;
-  referralSlug: string;
-  discountCode: string | null;
   initial: Values;
 }) {
   const router = useRouter();
@@ -151,16 +149,30 @@ export default function SettingsForm({
       </Section>
 
       <Section title="Your referral identity">
-        <dl className="space-y-2 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-ink/50">Referral slug</dt>
-            <dd className="font-mono text-xs">{referralSlug}</dd>
+        <div className="space-y-4">
+          <div>
+            <label className={labelClass}>Referral slug</label>
+            <input
+              className={inputClass}
+              maxLength={100}
+              value={values.referralSlug}
+              onChange={(e) => update("referralSlug", e.target.value)}
+            />
+            <p className="mt-1 text-xs text-ink/40">
+              Only letters, numbers, and dashes.
+            </p>
           </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-ink/50">Discount code</dt>
-            <dd className="font-mono text-xs">{discountCode ?? "—"}</dd>
+          <div>
+            <label className={labelClass}>Discount code</label>
+            <input
+              className={inputClass}
+              maxLength={100}
+              value={values.shopifyDiscountCode}
+              onChange={(e) => update("shopifyDiscountCode", e.target.value)}
+              placeholder="Leave blank for none"
+            />
           </div>
-        </dl>
+        </div>
       </Section>
 
       {error && (

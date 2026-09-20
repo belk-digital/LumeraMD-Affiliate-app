@@ -44,6 +44,7 @@ export default function AdminBell() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line
     load();
     const interval = setInterval(load, POLL_INTERVAL_MS);
     const onVisible = () => document.visibilityState === "visible" && load();

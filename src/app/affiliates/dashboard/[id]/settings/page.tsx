@@ -45,13 +45,13 @@ export default async function SettingsPage({
 
         <SettingsForm
           email={affiliate.userEmail}
-          referralSlug={affiliate.referralSlug}
-          discountCode={affiliate.shopifyDiscountCode}
           initial={{
             displayName: affiliate.displayName ?? "",
             payoutMethod: affiliate.payoutMethod ?? "",
             payoutDestination: destination,
             emailNotifications: affiliate.emailNotifications,
+            referralSlug: affiliate.referralSlug,
+            shopifyDiscountCode: affiliate.shopifyDiscountCode ?? "",
           }}
         />
       </div>

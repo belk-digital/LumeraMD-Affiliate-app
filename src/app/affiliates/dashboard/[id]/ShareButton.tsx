@@ -160,16 +160,20 @@ function CopyField({
   );
 }
 
-function ShareDialog({
+export function ShareDialog({
   affiliateId,
   referralLink,
   discountCode,
   onClose,
+  title = "Share & earn",
+  defaultMessage,
 }: {
   affiliateId: string;
   referralLink: string;
   discountCode: string | null;
   onClose: () => void;
+  title?: string;
+  defaultMessage?: string;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -178,9 +182,9 @@ function ShareDialog({
     () => typeof navigator !== "undefined" && typeof navigator.share === "function",
   );
 
-  const message = discountCode
+  const message = defaultMessage || (discountCode
     ? `Shop LumeraMD with my link: ${referralLink}\nOr use my code ${discountCode} at checkout.`
-    : `Shop LumeraMD with my link: ${referralLink}`;
+    : `Shop LumeraMD with my link: ${referralLink}`);
   const qrUrl = `/api/affiliates/${affiliateId}/qr`;
 
   const flash = useCallback((setter: (v: string | null) => void, v: string) => {
@@ -352,10 +356,12 @@ function ShareDialog({
         </button>
 
         <h2 id="share-dialog-title" className="font-heading text-lg font-semibold text-ink">
-          Share &amp; earn
+          {title}
         </h2>
         <p className="mt-0.5 text-sm text-ink/55">
-          Anyone who orders through your link or code is credited to you.
+          {title === "Share & earn" 
+            ? "Anyone who orders through your link or code is credited to you."
+            : "Anyone who signs up through your link will join your team."}
         </p>
 
         <div className="mt-5 grid gap-6 sm:grid-cols-[1fr_auto]">
