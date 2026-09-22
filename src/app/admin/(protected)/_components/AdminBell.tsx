@@ -1,18 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/Icon";
-
-interface Item {
-  id: string;
-  title: string;
-  subtitle: string;
-  createdAt: string;
-  href: string;
-}
-
-const POLL_INTERVAL_MS = 20_000;
+import type { AttentionItem } from "./useAdminAttention";
 
 function timeAgo(iso: string) {
   const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -24,36 +15,12 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-/** Shows what needs an admin's attention right now (pending applications and payout requests). */
-export default function AdminBell() {
+/** Shows what needs an admin's attention right now (pending applications and payout requests).
+ *  Fed by AdminShell (see useAdminAttention) so this shares the same poll as the sidebar badges
+ *  instead of fetching a second time. */
+export default function AdminBell({ items, total }: { items: AttentionItem[]; total: number }) {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<Item[]>([]);
-  const [total, setTotal] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/attention", { cache: "no-store" });
-      if (!res.ok) return;
-      const data = await res.json();
-      setItems(data.items);
-      setTotal(data.pendingApplications + data.pendingPayouts);
-    } catch {
-      // next poll retries
-    }
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line
-    load();
-    const interval = setInterval(load, POLL_INTERVAL_MS);
-    const onVisible = () => document.visibilityState === "visible" && load();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [load]);
 
   useEffect(() => {
     if (!open) return;

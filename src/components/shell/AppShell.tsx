@@ -10,6 +10,18 @@ export interface NavItem {
   label: string;
   icon: IconName;
   isActive: (path: string) => boolean;
+  /** Count of items needing attention on this tab (e.g. pending applications/payouts). Omit or
+   *  pass 0 to show no badge. */
+  badge?: number;
+}
+
+function NavBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-error px-1.5 text-[11px] font-semibold text-white">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
 }
 
 function SideLink({ item, pathname }: { item: NavItem; pathname: string }) {
@@ -25,6 +37,7 @@ function SideLink({ item, pathname }: { item: NavItem; pathname: string }) {
     >
       <Icon name={item.icon} className="h-5 w-5" />
       {item.label}
+      <NavBadge count={item.badge ?? 0} />
     </Link>
   );
 }
@@ -79,13 +92,18 @@ export default function AppShell({
             <Link
               key={item.label}
               href={item.href}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm ${
                 item.isActive(pathname)
                   ? "bg-primary-light font-medium text-primary"
                   : "text-ink/60"
               }`}
             >
               {item.label}
+              {!!item.badge && (
+                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-error px-1 text-[10px] font-semibold text-white">
+                  {item.badge > 99 ? "99+" : item.badge}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
