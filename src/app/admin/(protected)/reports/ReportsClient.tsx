@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { 
+import {
   ShoppingCart, DollarSign, MousePointerClick, Percent, Download,
-  ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Users, Calendar
+  ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Users, Calendar, FileSpreadsheet, FileText
 } from "lucide-react";
-import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import Avatar from "@/components/Avatar";
+import { exportReportToExcel } from "./exportExcel";
 
 export function ReportsClient({
   dailyData,
@@ -27,11 +28,34 @@ export function ReportsClient({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // Local state for pagination and sorting
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [sortBy, setSortBy] = useState("dateDesc");
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const revenueChartRef = useRef<HTMLDivElement>(null);
+  const clicksChartRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  const dateRangeLabels: Record<string, string> = {
+    last7: "Last 7 days",
+    last30: "Last 30 days",
+    thisMonth: "This month",
+    all: "All Time",
+  };
+
+  useEffect(() => {
+    if (!isExportOpen) return;
+    const close = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setIsExportOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
+  }, [isExportOpen]);
 
   const updateFilters = (updates: any) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -56,7 +80,8 @@ export function ReportsClient({
     router.push("?");
   };
 
-  const handleExport = () => {
+  const handleExportCsv = () => {
+    setIsExportOpen(false);
     const headers = ["Date", "Orders", "Revenue", "Commission", "Clicks", "Conversions", "Top Affiliate Email"];
     const rows = dailyData.map(d => [
       d.dateStr,
@@ -67,8 +92,8 @@ export function ReportsClient({
       d.conversions,
       d.topAffiliate?.email || "None"
     ]);
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(",") + "\n" 
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + headers.join(",") + "\n"
       + rows.map(e => e.join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -77,6 +102,33 @@ export function ReportsClient({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleExportExcel = async () => {
+    setIsExportOpen(false);
+    setIsExportingExcel(true);
+    try {
+      const revenueChartSvg = revenueChartRef.current?.querySelector("svg") ?? null;
+      const clicksChartSvg = clicksChartRef.current?.querySelector("svg") ?? null;
+      const affiliateLabel =
+        currentAffiliateId === "all"
+          ? "All Affiliates"
+          : affiliates.find(a => a.id === currentAffiliateId)?.userEmail || "Selected affiliate";
+
+      await exportReportToExcel({
+        dailyData,
+        stats,
+        dateRangeLabel: dateRangeLabels[currentDateRange] || currentDateRange,
+        affiliateLabel,
+        revenueChartSvg,
+        clicksChartSvg,
+      });
+    } catch (e) {
+      console.error("Failed to export Excel report:", e);
+      alert("Failed to generate the Excel report. Please try again.");
+    } finally {
+      setIsExportingExcel(false);
+    }
   };
 
   // Sort data for the table
@@ -121,13 +173,42 @@ export function ReportsClient({
               { label: "All Time", value: "all" }
             ]}
           />
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-medium text-sm transition shadow-sm"
-          >
-            <Download className="w-4 h-4" />
-            Export Report
-          </button>
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => setIsExportOpen(o => !o)}
+              disabled={isExportingExcel}
+              className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-medium text-sm transition shadow-sm disabled:opacity-60"
+            >
+              <Download className="w-4 h-4" />
+              {isExportingExcel ? "Generating..." : "Export Report"}
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            {isExportOpen && (
+              <div className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 border border-line overflow-hidden z-20">
+                <button
+                  onClick={handleExportExcel}
+                  className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-page-bg transition"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                  <span>
+                    <span className="block text-sm font-semibold text-ink">Excel (.xlsx)</span>
+                    <span className="block text-xs text-ink/50">Structured data, summary & charts</span>
+                  </span>
+                </button>
+                <div className="border-t border-line" />
+                <button
+                  onClick={handleExportCsv}
+                  className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-page-bg transition"
+                >
+                  <FileText className="w-4 h-4 text-ink/50 mt-0.5 shrink-0" />
+                  <span>
+                    <span className="block text-sm font-semibold text-ink">CSV (raw data)</span>
+                    <span className="block text-xs text-ink/50">Daily rows only, no formatting</span>
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -178,7 +259,7 @@ export function ReportsClient({
               <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#6366f1]"></div>Commission</span>
             </div>
           </div>
-          <div className="h-[250px] w-full">
+          <div className="h-[250px] w-full" ref={revenueChartRef}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dailyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -205,7 +286,7 @@ export function ReportsClient({
               <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6]"></div>Conversions</span>
             </div>
           </div>
-          <div className="h-[250px] w-full">
+          <div className="h-[250px] w-full" ref={clicksChartRef}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />

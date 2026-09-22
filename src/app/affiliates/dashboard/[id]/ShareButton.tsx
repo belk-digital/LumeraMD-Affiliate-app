@@ -167,6 +167,7 @@ export function ShareDialog({
   onClose,
   title = "Share & earn",
   defaultMessage,
+  qrType = "referral",
 }: {
   affiliateId: string;
   referralLink: string;
@@ -174,6 +175,9 @@ export function ShareDialog({
   onClose: () => void;
   title?: string;
   defaultMessage?: string;
+  /** Which link the QR code encodes: the storefront order link, or the team-invite link. They
+   *  must never match, or a sub-affiliate invite would hand out the order link instead. */
+  qrType?: "referral" | "invite";
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -185,7 +189,7 @@ export function ShareDialog({
   const message = defaultMessage || (discountCode
     ? `Shop LumeraMD with my link: ${referralLink}\nOr use my code ${discountCode} at checkout.`
     : `Shop LumeraMD with my link: ${referralLink}`);
-  const qrUrl = `/api/affiliates/${affiliateId}/qr`;
+  const qrUrl = `/api/affiliates/${affiliateId}/qr${qrType === "invite" ? "?type=invite" : ""}`;
 
   const flash = useCallback((setter: (v: string | null) => void, v: string) => {
     setter(v);
@@ -449,13 +453,13 @@ export function ShareDialog({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qrUrl}
-              alt="QR code for your referral link"
+              alt={qrType === "invite" ? "QR code for your team invite link" : "QR code for your referral link"}
               width={192}
               height={192}
               className="h-44 w-44 rounded-2xl border border-line p-2 sm:h-48 sm:w-48"
             />
             <a
-              href={`${qrUrl}?download=1`}
+              href={`${qrUrl}${qrUrl.includes("?") ? "&" : "?"}download=1`}
               className="text-sm font-medium text-primary hover:underline"
             >
               Download QR

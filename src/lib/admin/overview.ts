@@ -80,7 +80,10 @@ export async function getAdminOverview(days: RangeDays) {
       where: { createdAt: { gte: start }, status: { in: ["pending", "approved", "paid"] } },
       _sum: { amount: true },
     }),
-    prisma.affiliateApplication.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
+    prisma.affiliateApplication.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
     prisma.affiliateConversion.groupBy({
       by: ["affiliateId"],
       where: convWhere(start),

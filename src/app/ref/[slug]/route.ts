@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { updateAffiliateStats } from "@/lib/affiliates/stats";
 
 const PUBLIC_DOMAIN = process.env.SHOPIFY_PUBLIC_DOMAIN ?? process.env.SHOPIFY_STORE_DOMAIN!;
+// Where an affiliate's order link actually lands the shopper — the full catalog, not the homepage.
+const LANDING_PATH = "/collections/all-products";
 
 function hashIp(ip: string) {
   return crypto.createHash("sha256").update(ip).digest("hex");
@@ -19,7 +21,7 @@ export async function GET(
     where: { referralSlug: slug },
   });
 
-  const destination = new URL(`https://${PUBLIC_DOMAIN}/`);
+  const destination = new URL(`https://${PUBLIC_DOMAIN}${LANDING_PATH}`);
 
   if (!affiliate || affiliate.status !== "approved") {
     return NextResponse.redirect(destination);
@@ -44,7 +46,7 @@ export async function GET(
   // gets the tracking values in the URL instead: the theme snippet (shopify/affiliate-tracking.liquid)
   // keeps them on the store's own domain and writes them onto the cart, and they arrive on the
   // order as note attributes (affiliate_ref / affiliate_click_id).
-  const landing = new URL("/", destination);
+  const landing = new URL(LANDING_PATH, destination);
   landing.searchParams.set("ref", affiliate.id);
   landing.searchParams.set("cid", click.id);
   landing.searchParams.set("d", String(affiliate.cookieDurationDays));

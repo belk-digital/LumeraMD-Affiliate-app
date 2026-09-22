@@ -14,9 +14,18 @@ export async function GET(
   }
 
   const appBaseUrl = process.env.APP_BASE_URL ?? "";
-  const referralUrl = `${appBaseUrl}/ref/${affiliate.referralSlug}`;
 
-  const buffer = await QRCode.toBuffer(referralUrl, {
+  // Two distinct links share this endpoint: the order/referral link (default) sends shoppers to
+  // the store, while the team-invite link sends prospective sub-affiliates to the application
+  // form. They must never encode to the same QR image or a sub-affiliate invite would silently
+  // hand out the order link instead.
+  const type = req.nextUrl.searchParams.get("type") === "invite" ? "invite" : "referral";
+  const targetUrl =
+    type === "invite"
+      ? `${appBaseUrl}/affiliates/apply?ref=${affiliate.referralSlug}`
+      : `${appBaseUrl}/ref/${affiliate.referralSlug}`;
+
+  const buffer = await QRCode.toBuffer(targetUrl, {
     type: "png",
     width: 512,
     margin: 2,
@@ -24,6 +33,7 @@ export async function GET(
   });
 
   const download = req.nextUrl.searchParams.get("download") === "1";
+  const filenamePrefix = type === "invite" ? "lumeramd-invite" : "lumeramd-referral";
 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
@@ -31,7 +41,7 @@ export async function GET(
       "Cache-Control": "public, max-age=3600",
       ...(download
         ? {
-            "Content-Disposition": `attachment; filename="lumeramd-referral-${affiliate.referralSlug}.png"`,
+            "Content-Disposition": `attachment; filename="${filenamePrefix}-${affiliate.referralSlug}.png"`,
           }
         : {}),
     },

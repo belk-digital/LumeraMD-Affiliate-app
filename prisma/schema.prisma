@@ -177,6 +177,8 @@ model AffiliatePayout {
 model AffiliateApplication {
   id                    String            @id @default(cuid())
   displayName           String
+  firstName             String?
+  lastName              String?
   email                 String
   websiteUrl            String?
   socialLinks           Json?
@@ -184,6 +186,16 @@ model AffiliateApplication {
   estimatedMonthlyReach String?
   niche                 String?
   agreedToTerms         Boolean           @default(false)
+
+  // Signed IRS Form W-9, uploaded by the applicant so we can 1099-report their affiliate payouts.
+  // Stored as a file in Neon Object Storage (S3-compatible, branch-scoped) — not a typed-in
+  // SSN/EIN — so we never hold a taxpayer ID as plain text. w9StorageKey is the object key.
+  w9StorageKey          String?
+  w9FileName            String?
+  w9FileType            String?
+  w9VerifiedAt          DateTime?
+  w9VerifiedBy          String?
+
   referredByAffiliateId String?
   status                AffiliateStatus   @default(pending)
   reviewNotes           String?
