@@ -211,9 +211,27 @@ export default async function AdminPayoutsPage({
 
   const availableMethods = methods.map(m => m.payoutMethod).filter(Boolean);
 
+  // Real payout period = the date range of the conversions it actually covers.
+  const allConversionIds = payouts.flatMap((p) => p.conversionIds);
+  const coveredConversions = allConversionIds.length > 0
+    ? await prisma.affiliateConversion.findMany({
+        where: { id: { in: allConversionIds } },
+        select: { id: true, createdAt: true },
+      })
+    : [];
+  const conversionDateById = new Map(coveredConversions.map((c) => [c.id, c.createdAt]));
+  const payoutsWithPeriod = payouts.map((p) => {
+    const dates = p.conversionIds
+      .map((id) => conversionDateById.get(id))
+      .filter((d): d is Date => !!d);
+    const periodStart = dates.length > 0 ? new Date(Math.min(...dates.map((d) => d.getTime()))) : null;
+    const periodEnd = dates.length > 0 ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null;
+    return { ...p, periodStart, periodEnd };
+  });
+
   return (
-    <PayoutsClient 
-      initialPayouts={payouts} 
+    <PayoutsClient
+      initialPayouts={payoutsWithPeriod}
       totalFiltered={totalFiltered}
       page={page}
       pageSize={pageSize}

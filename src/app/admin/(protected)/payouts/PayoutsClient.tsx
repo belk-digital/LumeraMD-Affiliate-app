@@ -333,11 +333,14 @@ function SelectFilter({ icon, value, onChange, options }: any) {
 function PayoutRow({ payout }: { payout: any }) {
   const [showEdit, setShowEdit] = useState(false);
 
-  // Generate a fake period based on payout creation date for mockup parity
-  const d = new Date(payout.createdAt);
-  const firstDay = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-  const lastDay = new Date(d.getFullYear(), d.getMonth(), 0);
-  const period = `${firstDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric'})} - ${lastDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric'})}`;
+  // Real period = the date range of the conversions this payout actually covers (computed
+  // server-side from payout.conversionIds). Manual payouts cover no conversions, so there's
+  // no real period to show.
+  const period = payout.periodStart && payout.periodEnd
+    ? new Date(payout.periodStart).toDateString() === new Date(payout.periodEnd).toDateString()
+      ? new Date(payout.periodStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : `${new Date(payout.periodStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(payout.periodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    : "—";
 
   const paidDate = payout.status === "paid" && payout.updatedAt ? new Date(payout.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric'}) : "—";
 

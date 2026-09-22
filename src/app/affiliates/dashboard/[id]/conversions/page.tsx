@@ -86,22 +86,36 @@ export default async function ConversionsPage({
   const rawStatus = sp.status;
   const status = typeof rawStatus === "string" && rawStatus !== "all" ? rawStatus : undefined;
 
+  const rawDateRange = sp.dateRange;
+  const dateRange = typeof rawDateRange === "string" ? rawDateRange : "last30";
+
   const rawPage = sp.page;
   const page = typeof rawPage === "string" ? parseInt(rawPage, 10) || 1 : 1;
   const pageSize = 20;
 
   // Build dynamic where clause for this specific affiliate
   const where: any = { affiliateId: id };
-  
+
   if (q) {
     where.OR = [
       { shopifyOrderName: { contains: q, mode: "insensitive" } },
       { shopifyOrderId: { contains: q, mode: "insensitive" } },
     ];
   }
-  
+
   if (status) {
     where.status = status;
+  }
+
+  if (dateRange !== "all") {
+    const now = new Date();
+    if (dateRange === "last7") {
+      where.createdAt = { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+    } else if (dateRange === "last30") {
+      where.createdAt = { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+    } else if (dateRange === "thisMonth") {
+      where.createdAt = { gte: new Date(now.getFullYear(), now.getMonth(), 1) };
+    }
   }
 
   // Fetch paginated conversions
@@ -165,6 +179,7 @@ export default async function ConversionsPage({
         stats={stats}
         searchQuery={q}
         currentStatus={status || "all"}
+        currentDateRange={dateRange}
       />
     </DashboardShell>
   );

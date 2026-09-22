@@ -67,8 +67,9 @@ export function PayoutsClient({
             <span className="text-sm font-semibold text-ink/70">Total Earned</span>
           </div>
           <div className="font-heading text-3xl font-bold text-ink mb-1">{formatMoney(stats.totalEarned)}</div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-green-600">
-            ↑ 100% <span className="text-ink/40 font-normal">vs. previous 30 days</span>
+          <div className={`flex items-center gap-1.5 text-xs font-medium ${stats.totalEarnedTrend < 0 ? "text-error" : "text-green-600"}`}>
+            {stats.totalEarnedTrend < 0 ? `↓ ${Math.abs(stats.totalEarnedTrend)}%` : `↑ ${stats.totalEarnedTrend}%`}
+            <span className="text-ink/40 font-normal">vs. previous 30 days</span>
           </div>
         </div>
         

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { Link as LinkIcon, Download, Copy } from "lucide-react";
-import Link from "next/link";
 
 export function TabReferral({ affiliate }: { affiliate: Record<string, any> }) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
@@ -20,11 +19,11 @@ export function TabReferral({ affiliate }: { affiliate: Record<string, any> }) {
 
   const handleCopy = (text: string) => navigator.clipboard.writeText(text);
 
-  const displayClicks = affiliate.clicks && affiliate.clicks.length > 0 
+  const displayClicks = affiliate.clicks && affiliate.clicks.length > 0
     ? affiliate.clicks.slice(0, 5).map((c: Record<string, any>) => ({
         date: new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
         source: c.source || "Direct",
-        location: c.deviceType || "Unknown" // Using deviceType as mock location since location isn't in db
+        device: c.deviceType || "Unknown" // Location isn't tracked in the schema, so we show device type instead
       }))
     : [];
 
@@ -162,18 +161,15 @@ export function TabReferral({ affiliate }: { affiliate: Record<string, any> }) {
         <div className="rounded-2xl border border-line bg-white shadow-sm flex flex-col">
           <div className="flex items-center justify-between p-5 border-b border-line">
             <h2 className="font-heading text-base font-semibold text-ink leading-tight">Recent Referrals</h2>
-            <Link href="#" className="text-xs text-primary font-medium hover:underline flex items-center gap-1">
-              View all &rarr;
-            </Link>
           </div>
-          
+
           <div className="p-0 overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-page-bg border-b border-line text-ink/60">
                 <tr>
                   <th className="px-5 py-3 font-medium">Date</th>
                   <th className="px-5 py-3 font-medium">Source</th>
-                  <th className="px-5 py-3 font-medium">Location</th>
+                  <th className="px-5 py-3 font-medium">Device</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -182,7 +178,7 @@ export function TabReferral({ affiliate }: { affiliate: Record<string, any> }) {
                     <tr key={idx} className="hover:bg-page-bg/50 transition">
                       <td className="px-5 py-3 text-ink/80">{click.date}</td>
                       <td className="px-5 py-3 text-ink/80">{click.source}</td>
-                      <td className="px-5 py-3 text-ink/80">{click.location}</td>
+                      <td className="px-5 py-3 text-ink/80">{click.device}</td>
                     </tr>
                   ))
                 ) : (

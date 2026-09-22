@@ -73,6 +73,18 @@ export async function PATCH(
     updateData.cookieDurationDays = days;
   }
 
+  if ("minimumPayoutThreshold" in b) {
+    const min = Number(b.minimumPayoutThreshold);
+    if (!Number.isFinite(min) || min < 0) {
+      return NextResponse.json({ error: "Minimum payout amount must be a positive number" }, { status: 400 });
+    }
+    updateData.minimumPayoutThreshold = Math.round(min * 100) / 100;
+  }
+
+  if ("payoutMethod" in b) {
+    updateData.payoutMethod = b.payoutMethod || null;
+  }
+
   const existing = await prisma.affiliate.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Affiliate not found" }, { status: 404 });
 

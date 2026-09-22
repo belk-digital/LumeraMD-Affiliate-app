@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Percent, CheckCircle2, Clock, Check, Edit2, X } from "lucide-react";
+import { pctChange } from "@/lib/metrics";
 
 export function TabCommission({ affiliate }: { affiliate: Record<string, any> }) {
   const router = useRouter();
@@ -54,11 +55,23 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
   const numOrders = affiliate.conversions?.length || 0;
   const aov = numOrders > 0 ? totalOrderSubtotal / numOrders : 0;
 
-  const displayHistory = affiliate.conversions && affiliate.conversions.length > 0 
+  // Commission trend: last 30 days vs the 30 days before that, from this affiliate's own conversions.
+  const now = Date.now();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  const commissionCur = (affiliate.conversions || []).reduce((acc: number, c: Record<string, any>) => {
+    const age = now - new Date(c.createdAt).getTime();
+    return age >= 0 && age < thirtyDaysMs ? acc + c.commissionAmount : acc;
+  }, 0);
+  const commissionPrev = (affiliate.conversions || []).reduce((acc: number, c: Record<string, any>) => {
+    const age = now - new Date(c.createdAt).getTime();
+    return age >= thirtyDaysMs && age < thirtyDaysMs * 2 ? acc + c.commissionAmount : acc;
+  }, 0);
+  const commissionTrend = Math.round(pctChange(commissionCur, commissionPrev));
+
+  const displayHistory = affiliate.conversions && affiliate.conversions.length > 0
     ? affiliate.conversions.map((c: Record<string, any>) => ({
         date: new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
         order: `#${c.shopifyOrderName || c.shopifyOrderId.substring(0, 6)}`,
-        customer: "Customer", // Shopify customer details aren't in the schema, using placeholder
         value: `$${c.orderSubtotal.toFixed(2)}`,
         commission: `$${c.commissionAmount.toFixed(2)}`,
         status: c.status.charAt(0).toUpperCase() + c.status.slice(1)
@@ -91,8 +104,8 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
                   <div className="font-heading text-xl font-bold text-ink mt-0.5">${affiliate.totalCommissionEarned.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                 </div>
               </div>
-              <div className="flex items-center text-green-600 text-sm font-medium">
-                &uarr; 12%
+              <div className={`flex items-center text-sm font-medium ${commissionTrend < 0 ? "text-error" : "text-green-600"}`}>
+                {commissionTrend < 0 ? <>&darr; {Math.abs(commissionTrend)}%</> : <>&uarr; {commissionTrend}%</>}
               </div>
             </div>
 
@@ -226,7 +239,7 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
             <div className="flex justify-between items-center pt-2">
               <span className="text-ink/60">Total Orders</span>
               <div className="flex items-center gap-4">
-                <span className="font-bold text-ink">{numOrders > 0 ? numOrders : 48} Orders</span>
+                <span className="font-bold text-ink">{numOrders} Orders</span>
               </div>
             </div>
           </div>
@@ -237,18 +250,14 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
       <div className="rounded-2xl border border-line bg-white shadow-sm flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-line">
           <h2 className="font-heading text-base font-semibold text-ink leading-tight">Commission History</h2>
-          <a href="#" className="text-xs text-primary font-medium hover:underline flex items-center gap-1">
-            View all &rarr;
-          </a>
         </div>
-        
+
         <div className="p-0 overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead className="bg-page-bg border-b border-line text-ink/60">
               <tr>
                 <th className="px-5 py-3 font-medium">Date</th>
                 <th className="px-5 py-3 font-medium">Order #</th>
-                <th className="px-5 py-3 font-medium">Customer</th>
                 <th className="px-5 py-3 font-medium">Order Value</th>
                 <th className="px-5 py-3 font-medium">Commission</th>
                 <th className="px-5 py-3 font-medium">Status</th>
@@ -260,12 +269,11 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
                   <tr key={idx} className="hover:bg-page-bg/50 transition">
                     <td className="px-5 py-3 text-ink/80">{item.date}</td>
                     <td className="px-5 py-3 text-ink/80 font-medium">{item.order}</td>
-                    <td className="px-5 py-3 text-ink/80">{item.customer}</td>
                     <td className="px-5 py-3 text-ink/80">{item.value}</td>
                     <td className="px-5 py-3 text-ink font-medium">{item.commission}</td>
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase ${
-                        item.status === 'Paid' ? 'bg-green-100 text-green-700' : 
+                        item.status === 'Paid' ? 'bg-green-100 text-green-700' :
                         item.status === 'Pending' ? 'bg-orange-100 text-orange-700' :
                         'bg-line text-ink/60'
                       }`}>
@@ -276,7 +284,7 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-ink/50 text-xs">
+                  <td colSpan={5} className="px-5 py-8 text-center text-ink/50 text-xs">
                     No commissions found.
                   </td>
                 </tr>

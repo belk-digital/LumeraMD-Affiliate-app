@@ -88,20 +88,29 @@ export default async function AdminAffiliatesPage({
   const pendingStatsPromise = getStatWithTrend({ status: "pending" });
   const suspendedStatsPromise = getStatWithTrend({ status: "suspended" });
 
+  // Affiliates who currently have at least one sub-affiliate, for the "Parent" filter.
+  const parentOptionsPromise = prisma.affiliate.findMany({
+    where: { subAffiliates: { some: {} } },
+    select: { id: true, displayName: true, userEmail: true },
+    orderBy: { userEmail: "asc" },
+  });
+
   const [
-    affiliates, 
-    totalFiltered, 
-    totalStats, 
-    approvedStats, 
-    pendingStats, 
-    suspendedStats
+    affiliates,
+    totalFiltered,
+    totalStats,
+    approvedStats,
+    pendingStats,
+    suspendedStats,
+    parentOptions,
   ] = await Promise.all([
     affiliatesPromise,
     totalFilteredPromise,
     totalStatsPromise,
     approvedStatsPromise,
     pendingStatsPromise,
-    suspendedStatsPromise
+    suspendedStatsPromise,
+    parentOptionsPromise,
   ]);
 
   const stats = {
@@ -112,8 +121,8 @@ export default async function AdminAffiliatesPage({
   };
 
   return (
-    <AffiliatesClient 
-      initialAffiliates={affiliates} 
+    <AffiliatesClient
+      initialAffiliates={affiliates}
       totalFiltered={totalFiltered}
       page={page}
       pageSize={pageSize}
@@ -121,6 +130,7 @@ export default async function AdminAffiliatesPage({
       searchQuery={q}
       currentStatus={status || "all"}
       currentParent={parentId || "all"}
+      parentOptions={parentOptions}
     />
   );
 }

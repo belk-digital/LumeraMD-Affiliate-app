@@ -17,7 +17,8 @@ export function AffiliatesClient({
   stats,
   searchQuery,
   currentStatus,
-  currentParent
+  currentParent,
+  parentOptions,
 }: {
   initialAffiliates: any[];
   totalFiltered: number;
@@ -27,6 +28,7 @@ export function AffiliatesClient({
   searchQuery: string;
   currentStatus: string;
   currentParent: string;
+  parentOptions: { id: string; displayName: string | null; userEmail: string }[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -34,6 +36,50 @@ export function AffiliatesClient({
   const [status, setStatus] = useState(currentStatus);
   const [parent, setParent] = useState(currentParent);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+  // Selection resets whenever the underlying page of affiliates changes.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [initialAffiliates]);
+
+  const allSelected = initialAffiliates.length > 0 && selected.size === initialAffiliates.length;
+
+  const toggleAll = () => {
+    setSelected(allSelected ? new Set() : new Set(initialAffiliates.map((a) => a.id)));
+  };
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkSetStatus = async (newStatus: "approved" | "suspended") => {
+    setIsBulkUpdating(true);
+    try {
+      await Promise.all(
+        Array.from(selected).map((id) =>
+          fetch(`/api/admin/affiliates/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              status: newStatus,
+              suspendReason: newStatus === "suspended" ? "Suspended via bulk action" : null,
+            }),
+          })
+        )
+      );
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
 
   // Debounced search
   useEffect(() => {
@@ -179,7 +225,9 @@ export function AffiliatesClient({
               className="appearance-none bg-page-bg border border-transparent hover:border-line text-sm font-medium rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 transition cursor-pointer"
             >
               <option value="all">All Parents</option>
-              {/* Note: Populating parents dynamically would require another fetch, omitting for brevity */}
+              {parentOptions.map((p) => (
+                <option key={p.id} value={p.id}>{p.displayName || p.userEmail}</option>
+              ))}
             </select>
             <Users className="w-4 h-4 absolute left-3.5 top-3 text-ink/50 pointer-events-none" />
             <ChevronDown className="w-4 h-4 absolute right-3.5 top-3 text-ink/50 pointer-events-none" />
@@ -203,6 +251,35 @@ export function AffiliatesClient({
         </button>
       </div>
 
+      {/* Bulk actions bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center justify-between bg-primary-light/40 border border-primary/20 rounded-2xl px-4 py-3">
+          <span className="text-sm font-medium text-ink">{selected.size} selected</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => bulkSetStatus("approved")}
+              disabled={isBulkUpdating}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-line bg-white text-green-700 hover:bg-green-50 transition disabled:opacity-50"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => bulkSetStatus("suspended")}
+              disabled={isBulkUpdating}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-line bg-white text-error hover:bg-error/10 transition disabled:opacity-50"
+            >
+              Suspend
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg text-ink/60 hover:text-ink transition"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-line overflow-hidden">
         <div className="overflow-x-auto">
@@ -210,7 +287,12 @@ export function AffiliatesClient({
             <thead className="bg-page-bg/50 border-b border-line text-xs font-semibold text-ink/60">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
-                  <input type="checkbox" className="rounded border-line text-primary focus:ring-primary/20 cursor-pointer" />
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    className="rounded border-line text-primary focus:ring-primary/20 cursor-pointer"
+                  />
                 </th>
                 <th className="px-6 py-4">Affiliate</th>
                 <th className="px-6 py-4">Status</th>
@@ -226,7 +308,12 @@ export function AffiliatesClient({
               {initialAffiliates.length > 0 ? initialAffiliates.map(a => (
                 <tr key={a.id} className="hover:bg-page-bg/30 transition group">
                   <td className="px-6 py-4 text-center">
-                    <input type="checkbox" className="rounded border-line text-primary focus:ring-primary/20 cursor-pointer" />
+                    <input
+                      type="checkbox"
+                      checked={selected.has(a.id)}
+                      onChange={() => toggleOne(a.id)}
+                      className="rounded border-line text-primary focus:ring-primary/20 cursor-pointer"
+                    />
                   </td>
                   <td className="px-6 py-4">
                     <Link href={`/admin/affiliates/${a.id}`} className="flex items-center gap-3">

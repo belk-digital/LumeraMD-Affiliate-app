@@ -32,12 +32,26 @@ export default function TeamClient({
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isInviteModalOpen, setInviteModalOpen] = useState(false);
+  const [viewingMember, setViewingMember] = useState<any | null>(null);
   const itemsPerPage = 5;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(inviteLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleMoreShare = async () => {
+    const shareData = { title: "Join my affiliate team", text: "Join my affiliate team on LumeraMD", url: inviteLink };
+    if (typeof navigator !== "undefined" && navigator.share && navigator.canShare?.(shareData)) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // cancelled — nothing to do
+      }
+    } else {
+      handleCopy();
+    }
   };
 
   // Process data for Team Growth Chart
@@ -256,7 +270,12 @@ export default function TeamClient({
               icon={<svg className="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M4.98 3.5c0 1.381-1.11 2.5-2.48 2.5s-2.48-1.119-2.48-2.5c0-1.38 1.11-2.5 2.48-2.5s2.48 1.12 2.48 2.5zm.02 4.5h-5v16h5v-16zm7.982 0h-4.968v16h4.969v-8.399c0-4.67 6.029-5.052 6.029 0v8.399h4.988v-10.131c0-7.88-8.922-7.593-11.018-3.714v-2.155z"/></svg>} 
               color="bg-blue-700" label="LinkedIn" href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}`} 
             />
-            <SocialBtn icon={<MoreHorizontal className="w-4 h-4 text-ink" />} color="bg-page-bg border border-line" label="More" href="#" />
+            <button onClick={handleMoreShare} className="flex flex-col items-center gap-2 group">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-page-bg border border-line group-hover:-translate-y-1 transition transform duration-200 shadow-sm hover:shadow-md">
+                <MoreHorizontal className="w-4 h-4 text-ink" />
+              </div>
+              <span className="text-[10px] text-ink/60 font-medium">More</span>
+            </button>
           </div>
         </div>
       </div>
@@ -323,8 +342,12 @@ export default function TeamClient({
                   <td className="px-4 py-3.5 text-ink/70 font-medium">{formatMoney(m.earnedFromThem)}</td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2">
-                      <button className="text-primary hover:text-primary-dark font-medium text-[11px] px-3 py-1.5 border border-primary/20 rounded-lg hover:bg-primary-light transition">View</button>
-                      <button className="text-ink/40 hover:text-ink/80 p-1.5 border border-transparent hover:border-line rounded-lg transition"><MoreHorizontal className="w-4 h-4"/></button>
+                      <button
+                        onClick={() => setViewingMember(m)}
+                        className="text-primary hover:text-primary-dark font-medium text-[11px] px-3 py-1.5 border border-primary/20 rounded-lg hover:bg-primary-light transition"
+                      >
+                        View
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -386,9 +409,57 @@ export default function TeamClient({
           affiliateId={affiliateId}
           referralLink={inviteLink}
           discountCode={null}
+          qrType="invite"
           onClose={() => setInviteModalOpen(false)}
         />
       )}
+
+      {viewingMember && (
+        <MemberDetailsModal member={viewingMember} onClose={() => setViewingMember(null)} />
+      )}
+    </div>
+  );
+}
+
+function MemberDetailsModal({ member, onClose }: { member: any; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 border-b border-line flex items-center justify-between bg-page-bg/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary-light text-primary flex items-center justify-center text-sm font-bold font-heading">
+              {(member.displayName || member.userEmail).substring(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <h2 className="font-heading text-base font-bold text-ink">{member.displayName || "—"}</h2>
+              <p className="text-xs text-ink/60">{member.userEmail}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-ink/40 hover:text-ink transition text-xl leading-none">&times;</button>
+        </div>
+        <div className="p-6 space-y-4 text-sm">
+          <div className="flex justify-between items-center">
+            <span className="text-ink/60">Status</span>
+            <StatusPill status={member.status} />
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-ink/60">Joined</span>
+            <span className="font-medium text-ink">{fmtDate(member.createdAt)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-ink/60">Their Total Orders</span>
+            <span className="font-medium text-ink">{member.totalConversions ?? 0}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-ink/60">Their Total Commission</span>
+            <span className="font-medium text-ink">{formatMoney(member.totalCommissionEarned ?? 0)}</span>
+          </div>
+          <div className="flex justify-between items-center pt-2 border-t border-line/50">
+            <span className="text-ink/60">Earned From Them (Override)</span>
+            <span className="font-bold text-ink">{formatMoney(member.earnedFromThem ?? 0)}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

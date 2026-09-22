@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
+import { pctChange } from "@/lib/metrics";
 import DashboardShell from "../DashboardShell";
 import { PayoutsClient } from "./PayoutsClient";
 
@@ -35,8 +36,27 @@ export default async function PayoutsPage({
   const pendingAmount = pendingPayouts.reduce((acc, p) => acc + p.amount, 0);
   const pendingCount = pendingPayouts.length;
 
+  // Real trend for Total Earned: commission earned in the last 30 days vs the 30 days before.
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const [earnedCur, earnedPrev] = await Promise.all([
+    prisma.affiliateConversion.aggregate({
+      where: { affiliateId: id, createdAt: { gte: thirtyDaysAgo } },
+      _sum: { commissionAmount: true },
+    }),
+    prisma.affiliateConversion.aggregate({
+      where: { affiliateId: id, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
+      _sum: { commissionAmount: true },
+    }),
+  ]);
+  const totalEarnedTrend = Math.round(
+    pctChange(earnedCur._sum.commissionAmount ?? 0, earnedPrev._sum.commissionAmount ?? 0)
+  );
+
   const stats = {
     totalEarned: affiliate.totalCommissionEarned, // using earned commission
+    totalEarnedTrend,
     pending: { amount: pendingAmount, count: pendingCount },
     paid: { amount: paidAmount, count: paidCount },
   };

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   ShoppingCart, DollarSign, Clock, CheckCircle2, Search,
-  ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Info, Mail, Gift, ArrowRight
+  ChevronDown, ChevronLeft, ChevronRight, Info, Mail, Gift, ArrowRight
 } from "lucide-react";
 import { ShareDialog } from "../ShareButton";
 
@@ -20,6 +20,7 @@ export function AffiliateConversionsClient({
   stats,
   searchQuery,
   currentStatus,
+  currentDateRange,
 }: {
   affiliateId: string;
   referralLink: string;
@@ -31,12 +32,13 @@ export function AffiliateConversionsClient({
   stats: any;
   searchQuery: string;
   currentStatus: string;
+  currentDateRange: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [q, setQ] = useState(searchQuery);
   const [status, setStatus] = useState(currentStatus);
-  const [dateRange, setDateRange] = useState("last30");
+  const [dateRange, setDateRange] = useState(currentDateRange);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // Debounced search
@@ -58,6 +60,10 @@ export function AffiliateConversionsClient({
     if (updates.status !== undefined) {
       if (updates.status && updates.status !== "all") params.set("status", updates.status);
       else params.delete("status");
+    }
+    if (updates.dateRange !== undefined) {
+      if (updates.dateRange && updates.dateRange !== "last30") params.set("dateRange", updates.dateRange);
+      else params.delete("dateRange");
     }
     if (updates.page !== undefined) {
       if (updates.page > 1) params.set("page", updates.page.toString());
@@ -85,9 +91,9 @@ export function AffiliateConversionsClient({
         </div>
         
         <div className="relative shrink-0">
-          <select 
+          <select
             value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
+            onChange={(e) => { setDateRange(e.target.value); updateFilters({ dateRange: e.target.value, page: 1 }); }}
             className="appearance-none bg-white border border-line hover:border-ink/20 text-sm font-semibold rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 transition cursor-pointer shadow-sm"
           >
             <option value="last7">Last 7 days</option>
@@ -185,17 +191,13 @@ export function AffiliateConversionsClient({
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Commission</th>
                 <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {initialConversions.length > 0 ? initialConversions.map(c => (
                 <tr key={c.id} className="hover:bg-page-bg/30 transition group">
-                  <td className="px-6 py-4 font-semibold text-primary hover:underline">
-                    <Link href="#" className="flex items-center gap-1.5">
-                      {c.shopifyOrderName || `#${c.id.substring(c.id.length - 4)}`}
-                      <ExternalLink className="w-3 h-3 text-primary/70" />
-                    </Link>
+                  <td className="px-6 py-4 font-semibold text-ink/90">
+                    {c.shopifyOrderName || `#${c.id.substring(c.id.length - 4)}`}
                   </td>
                   <td className="px-6 py-4">
                     <StatusBadge status={c.status} />
@@ -206,19 +208,10 @@ export function AffiliateConversionsClient({
                   <td className="px-6 py-4 text-ink/70 font-medium text-sm">
                     {new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <Link 
-                      href="#" 
-                      className="inline-flex flex-row items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-line text-xs font-medium text-primary hover:bg-primary/5 transition bg-white"
-                    >
-                      View Order
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Link>
-                  </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-ink/50 font-medium">
+                  <td colSpan={4} className="px-6 py-12 text-center text-ink/50 font-medium">
                     No conversions found matching your criteria.
                   </td>
                 </tr>
