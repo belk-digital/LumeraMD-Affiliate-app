@@ -15,7 +15,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      from: "LumeraMD Affiliates <onboarding@resend.dev>",
+      from: "LumeraMD Affiliates <notifications@lumeramd.biz>",
       to,
       cc: MONITOR_CC,
       subject,
