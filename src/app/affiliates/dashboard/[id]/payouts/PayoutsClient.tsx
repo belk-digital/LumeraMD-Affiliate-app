@@ -23,13 +23,26 @@ export function PayoutsClient({
   available: number;
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const filteredPayouts = useMemo(() => {
-    return payouts.filter(p => statusFilter === "all" || p.status === statusFilter);
-  }, [payouts, statusFilter]);
+    const q = searchQuery.trim().toLowerCase();
+    return payouts.filter((p) => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (!q) return true;
+      const payoutId = `PAY-${new Date(p.createdAt).getFullYear()}-${p.id.substring(p.id.length - 4)}`;
+      const period = new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      return (
+        payoutId.toLowerCase().includes(q) ||
+        formatMoney(p.amount).toLowerCase().includes(q) ||
+        period.toLowerCase().includes(q) ||
+        p.status.toLowerCase().includes(q)
+      );
+    });
+  }, [payouts, statusFilter, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPayouts.length / itemsPerPage));
   const paginatedPayouts = filteredPayouts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -117,11 +130,22 @@ export function PayoutsClient({
 
       {/* Payout History Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-line overflow-hidden animate-fade-up" style={{ animationDelay: '200ms' }}>
-        <div className="p-5 md:p-6 border-b border-line flex justify-between items-center">
+        <div className="p-5 md:p-6 border-b border-line flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <h2 className="font-heading text-xl font-bold text-ink">Payout History</h2>
-          
-          <div className="relative w-40">
-            <select 
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-48">
+              <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-ink/40 pointer-events-none" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                placeholder="Search payouts..."
+                className="w-full bg-white border border-line hover:border-ink/20 text-sm font-medium rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+              />
+            </div>
+            <div className="relative w-40 shrink-0">
+            <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
               className="w-full appearance-none bg-white border border-line hover:border-ink/20 text-sm font-medium rounded-xl pl-4 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 transition cursor-pointer"
@@ -133,9 +157,10 @@ export function PayoutsClient({
               <option value="rejected">Rejected</option>
             </select>
             <ChevronDown className="w-4 h-4 absolute right-3.5 top-2.5 text-ink/50 pointer-events-none" />
+            </div>
           </div>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-page-bg/30 border-b border-line text-xs font-semibold text-ink/60">

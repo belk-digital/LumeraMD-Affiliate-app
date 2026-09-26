@@ -155,7 +155,7 @@ export default async function DashboardPage({
           <Card title="Your links" delay={120} className="min-w-0 xl:col-span-2">
             <div className="flex flex-col gap-6 sm:flex-row">
               <div className="flex-1 min-w-0 space-y-3 text-sm">
-                <CopyableRow label="Referral link" value={referralLink} />
+                <CopyableRow label="Order link" value={referralLink} />
                 {affiliate.shopifyDiscountCode && (
                   <CopyableRow label="Discount code" value={affiliate.shopifyDiscountCode} mono />
                 )}
@@ -167,7 +167,7 @@ export default async function DashboardPage({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/affiliates/${affiliate.id}/qr`}
-                  alt="Referral link QR code"
+                  alt="Order link QR code"
                   className="h-32 w-32 rounded-xl border border-line"
                 />
                 <a
@@ -188,7 +188,7 @@ export default async function DashboardPage({
               variant="white"
               index={5}
               slices={[
-                { key: "link", label: "Referral link", value: sources.referral_link, color: "#4f46e5" },
+                { key: "link", label: "Order link", value: sources.referral_link, color: "#4f46e5" },
                 { key: "coupon", label: "Coupon code", value: sources.coupon_code, color: "#e59a35" },
                 { key: "both", label: "Both", value: sources.both, color: "#5aa0f0" },
               ]}

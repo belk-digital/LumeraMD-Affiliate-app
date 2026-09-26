@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { prisma } from "@/lib/prisma";
+import { hasAffiliateAccess } from "@/lib/affiliates/access";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  if (!(await hasAffiliateAccess(id))) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
 
   const affiliate = await prisma.affiliate.findUnique({ where: { id } });
   if (!affiliate) {

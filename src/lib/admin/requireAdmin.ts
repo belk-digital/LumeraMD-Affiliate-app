@@ -13,6 +13,6 @@ export async function requireAdminOrResponse() {
 /** For pages: called next to the data access, since layouts don't re-run on client navigations. */
 export async function requireAdminPage() {
   const session = await getAdminSession();
-  if (!session) redirect("/admin/login");
+  if (!session) redirect("/lumera-ops/login");
   return session;
 }

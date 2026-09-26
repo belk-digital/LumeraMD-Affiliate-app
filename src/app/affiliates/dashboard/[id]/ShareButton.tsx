@@ -371,7 +371,7 @@ export function ShareDialog({
         <div className="mt-5 grid gap-6 sm:grid-cols-[1fr_auto]">
           <div className="min-w-0 space-y-3">
             <CopyField
-              label="Referral link"
+              label={qrType === "invite" ? "Invite link" : "Order link"}
               value={referralLink}
               copied={copiedKey === "link"}
               onCopy={() => copy("link", referralLink)}
@@ -380,7 +380,7 @@ export function ShareDialog({
                   href={referralLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="Open referral link in a new tab"
+                  aria-label={qrType === "invite" ? "Open invite link in a new tab" : "Open order link in a new tab"}
                   title="Open link"
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-ink/60 transition hover:bg-page-bg"
                 >

@@ -84,13 +84,13 @@ export default function DashboardShell({
       topBar={
         <>
           <div className="flex min-w-0 flex-1 max-w-xl items-center gap-2 rounded-full border border-line bg-page-bg px-4 py-2.5 text-sm text-ink/60">
-            <Icon name="search" className="h-4 w-4 shrink-0 text-ink/40" />
+            <Icon name="link" className="h-4 w-4 shrink-0 text-ink/40" />
             <span className="truncate">{referralLink}</span>
           </div>
           <button
             onClick={copyLink}
             title="Copy link"
-            aria-label="Copy referral link"
+            aria-label="Copy order link"
             className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-ink/50 transition hover:bg-page-bg sm:flex"
           >
             {copied ? (

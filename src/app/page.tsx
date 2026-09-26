@@ -187,9 +187,14 @@ export default async function Home() {
       <footer className="border-t border-line bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 text-xs text-ink/40 sm:px-6">
           <span>© {new Date().getFullYear()} LumeraMD</span>
-          <Link href="/admin/login" className="transition hover:text-ink/70">
-            Admin
-          </Link>
+          <a
+            href="https://belkdigital.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition hover:text-ink/70"
+          >
+            Designed and developed by BelkDigital
+          </a>
         </div>
       </footer>
     </div>

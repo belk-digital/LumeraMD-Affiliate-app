@@ -2,14 +2,26 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/storage";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Disallows <, >, ", ' and other characters that could break out of HTML/attribute
+// context when this address is later interpolated into outbound emails.
+const EMAIL_RE = /^[a-zA-Z0-9.!#$%&*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 const MAX_W9_BYTES = 8 * 1024 * 1024; // 8MB
 const ALLOWED_W9_TYPES = new Set(["application/pdf", "image/png", "image/jpeg"]);
 
 // Applications ship as multipart/form-data (not JSON) because the signed W-9 rides along in the
 // same request — it's uploaded to Neon Object Storage, never as a typed-in SSN/EIN.
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const ipLimit = await checkRateLimit("affiliate-apply-ip", ip, 5, "1 h");
+  if (!ipLimit.ok) {
+    return NextResponse.json(
+      { error: "Too many applications from this network. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(ipLimit.retryAfterSeconds) } },
+    );
+  }
+
   const form = await req.formData().catch(() => null);
   if (!form) {
     return NextResponse.json({ error: "Invalid submission." }, { status: 400 });
@@ -34,6 +46,13 @@ export async function POST(req: NextRequest) {
   }
   if (!email || !EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Please enter a valid email." }, { status: 400 });
+  }
+  const emailLimit = await checkRateLimit("affiliate-apply-email", email.toLowerCase(), 3, "1 h");
+  if (!emailLimit.ok) {
+    return NextResponse.json(
+      { error: "Too many applications submitted for this email. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(emailLimit.retryAfterSeconds) } },
+    );
   }
   if (!agreedToTerms) {
     return NextResponse.json({ error: "You need to agree to the terms." }, { status: 400 });

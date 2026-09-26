@@ -19,7 +19,12 @@ export function createSessionToken(email: string): string {
 function parseSessionToken(token: string): { email: string } | null {
   const [encoded, signature] = token.split(".");
   if (!encoded || !signature) return null;
-  if (sign(encoded) !== signature) return null;
+
+  const expected = Buffer.from(sign(encoded));
+  const actual = Buffer.from(signature);
+  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
+    return null;
+  }
 
   try {
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString());
