@@ -158,18 +158,18 @@ export function IdentityInfoCard({ affiliate }: { affiliate: Record<string, any>
       <div className="flex-1 p-6 space-y-5 text-sm">
         <div className="flex justify-between items-center">
           <span className="text-ink/60 w-32 shrink-0">Email</span>
-          <div className="flex items-center justify-between flex-1 pl-4">
+          <div className="flex items-center justify-between flex-1 pl-4 overflow-hidden">
             {isEditing ? (
-              <input 
-                type="email" 
+              <input
+                type="email"
                 value={formData.userEmail}
                 onChange={e => setFormData({...formData, userEmail: e.target.value})}
                 className="flex-1 border border-line rounded-md px-2 py-1 text-sm bg-page-bg"
               />
             ) : (
               <>
-                <span className="font-medium">{affiliate.userEmail}</span>
-                <button onClick={() => handleCopy(affiliate.userEmail)} className="text-ink/40 hover:text-ink transition p-1">
+                <span className="font-medium truncate">{affiliate.userEmail}</span>
+                <button onClick={() => handleCopy(affiliate.userEmail)} className="text-ink/40 hover:text-ink transition p-1 ml-2 shrink-0">
                   <Copy className="w-4 h-4" />
                 </button>
               </>
@@ -215,9 +215,9 @@ export function IdentityInfoCard({ affiliate }: { affiliate: Record<string, any>
         
         <div className="flex justify-between items-center">
           <span className="text-ink/60 w-32 shrink-0">Affiliate ID</span>
-          <div className="flex items-center justify-between flex-1 pl-4">
-            <span className="font-medium font-mono text-xs">{affiliate.id}</span>
-            <button onClick={() => handleCopy(affiliate.id)} className="text-ink/40 hover:text-ink transition p-1">
+          <div className="flex items-center justify-between flex-1 pl-4 overflow-hidden">
+            <span className="font-medium font-mono text-xs truncate">{affiliate.id}</span>
+            <button onClick={() => handleCopy(affiliate.id)} className="text-ink/40 hover:text-ink transition p-1 ml-2 shrink-0">
               <Copy className="w-4 h-4" />
             </button>
           </div>

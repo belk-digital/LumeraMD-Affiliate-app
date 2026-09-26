@@ -252,7 +252,7 @@ export function ConversionsClient({
         </div>
         
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-line flex items-center justify-between bg-page-bg/30">
+        <div className="px-6 py-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3 bg-page-bg/30">
           <div className="text-sm text-ink/60 font-medium">
             Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalFiltered)} of {totalFiltered} orders
           </div>

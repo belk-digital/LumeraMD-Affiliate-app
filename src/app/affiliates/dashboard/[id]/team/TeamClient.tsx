@@ -287,18 +287,18 @@ export default function TeamClient({
             <h2 className="font-heading text-lg font-bold text-ink">My Team Members</h2>
             <p className="text-xs text-ink/60 mt-1">A list of affiliates who joined under you.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 sm:flex-none sm:w-[220px]">
               <Search className="w-4 h-4 text-ink/40 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input 
-                type="text" 
-                placeholder="Search team members..." 
+              <input
+                type="text"
+                placeholder="Search team members..."
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="pl-9 pr-4 py-2 bg-page-bg border border-line rounded-lg text-sm w-[220px] focus:outline-none focus:border-primary transition"
+                className="pl-9 pr-4 py-2 bg-page-bg border border-line rounded-lg text-sm w-full focus:outline-none focus:border-primary transition"
               />
             </div>
-            <select 
+            <select
               value={statusFilter}
               onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
               className="px-4 py-2 pr-8 bg-page-bg border border-line rounded-lg text-sm focus:outline-none appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.5rem_center]"

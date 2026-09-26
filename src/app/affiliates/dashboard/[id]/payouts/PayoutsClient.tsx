@@ -204,7 +204,7 @@ export function PayoutsClient({
         
         {/* Pagination */}
         {filteredPayouts.length > 0 && (
-          <div className="px-6 py-4 border-t border-line flex items-center justify-between bg-page-bg/30">
+          <div className="px-6 py-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3 bg-page-bg/30">
             <div className="text-sm text-ink/60 font-medium">
               Showing {startItem} to {endItem} of {filteredPayouts.length}
             </div>
@@ -258,21 +258,21 @@ export function PayoutsClient({
           </button>
         </div>
         <div className="space-y-4 text-sm">
-          <div className="grid grid-cols-2">
-            <span className="text-ink/60 font-medium flex items-center gap-2"><Wallet className="w-4 h-4"/> Payment Method</span>
-            <span className="text-ink font-medium capitalize">{affiliate.payoutMethod || '—'}</span>
+          <div className="grid grid-cols-2 gap-2">
+            <span className="text-ink/60 font-medium flex items-center gap-2 min-w-0"><Wallet className="w-4 h-4 shrink-0"/> Payment Method</span>
+            <span className="text-ink font-medium capitalize min-w-0 break-words text-right">{affiliate.payoutMethod || '—'}</span>
           </div>
-          <div className="grid grid-cols-2">
-            <span className="text-ink/60 font-medium flex items-center gap-2"><Mail className="w-4 h-4"/> Destination</span>
-            <span className="text-ink font-medium">{savedDestination || '—'}</span>
+          <div className="grid grid-cols-2 gap-2">
+            <span className="text-ink/60 font-medium flex items-center gap-2 min-w-0"><Mail className="w-4 h-4 shrink-0"/> Destination</span>
+            <span className="text-ink font-medium min-w-0 break-words text-right">{savedDestination || '—'}</span>
           </div>
-          <div className="grid grid-cols-2">
-            <span className="text-ink/60 font-medium flex items-center gap-2"><DollarSign className="w-4 h-4"/> Minimum Payout</span>
-            <span className="text-ink font-medium">{formatMoney(affiliate.minimumPayoutThreshold)}</span>
+          <div className="grid grid-cols-2 gap-2">
+            <span className="text-ink/60 font-medium flex items-center gap-2 min-w-0"><DollarSign className="w-4 h-4 shrink-0"/> Minimum Payout</span>
+            <span className="text-ink font-medium min-w-0 break-words text-right">{formatMoney(affiliate.minimumPayoutThreshold)}</span>
           </div>
-          <div className="grid grid-cols-2">
-            <span className="text-ink/60 font-medium flex items-center gap-2"><Clock className="w-4 h-4"/> Next Payout Date</span>
-            <span className="text-ink font-medium">First of next month</span>
+          <div className="grid grid-cols-2 gap-2">
+            <span className="text-ink/60 font-medium flex items-center gap-2 min-w-0"><Clock className="w-4 h-4 shrink-0"/> Next Payout Date</span>
+            <span className="text-ink font-medium min-w-0 break-words text-right">First of next month</span>
           </div>
         </div>
       </div>
