@@ -11,7 +11,6 @@ export default async function AdminSettingsPage() {
     create: { id: "global" },
   });
 
-  const emailOverride = process.env.EMAIL_OVERRIDE_TO;
   const admins = (process.env.ADMIN_ALLOWED_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim())
@@ -42,15 +41,9 @@ export default async function AdminSettingsPage() {
           <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
             <dt className="text-ink/50">Email delivery</dt>
             <dd className="text-ink">
-              {emailOverride ? (
-                <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-                  Test mode — all email goes to {emailOverride}
-                </span>
-              ) : (
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                  Live — email goes to real recipients
-                </span>
-              )}
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                Live — email goes to real recipients (CC main.belkdigital@gmail.com)
+              </span>
             </dd>
           </div>
           <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
