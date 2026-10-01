@@ -19,7 +19,7 @@ import { round2 } from "@/lib/metrics";
  * "Available to request" is `approved` minus payouts still in flight (see the payout routes).
  */
 export async function updateAffiliateStats(affiliateId: string) {
-  const [totalClicks, own, team, paidPayouts] = await Promise.all([
+  const [totalClicks, own, legacyTeam, overrideRows, paidPayouts] = await Promise.all([
     prisma.affiliateClick.count({ where: { affiliateId } }),
     prisma.affiliateConversion.findMany({
       where: { affiliateId },
@@ -29,11 +29,22 @@ export async function updateAffiliateStats(affiliateId: string) {
       where: { parentAffiliateId: affiliateId, status: { in: ["pending", "approved", "paid"] } },
       select: { status: true, parentCommissionAmount: true },
     }),
+    prisma.conversionOverride.findMany({
+      where: { affiliateId, conversion: { status: { in: ["pending", "approved", "paid"] } } },
+      select: { amount: true, conversion: { select: { status: true } } },
+    }),
     prisma.affiliatePayout.aggregate({
       where: { affiliateId, status: "paid" },
       _sum: { amount: true },
     }),
   ]);
+
+  // Team earnings come from two sources: legacy single-parent overrides on the conversion row,
+  // and unilevel override slots (mutually exclusive per conversion).
+  const team = [
+    ...legacyTeam.map((c) => ({ status: c.status, amount: c.parentCommissionAmount ?? 0 })),
+    ...overrideRows.map((o) => ({ status: o.conversion.status, amount: o.amount })),
+  ];
 
   const ownSum = (statuses: string[]) =>
     own
@@ -42,7 +53,7 @@ export async function updateAffiliateStats(affiliateId: string) {
   const teamSum = (statuses: string[]) =>
     team
       .filter((c) => statuses.includes(c.status))
-      .reduce((acc, c) => acc + (c.parentCommissionAmount ?? 0), 0);
+      .reduce((acc, c) => acc + c.amount, 0);
 
   const pending = ownSum(["pending"]) + teamSum(["pending"]);
   const pool = ownSum(["approved", "paid"]) + teamSum(["approved", "paid"]);
@@ -63,4 +74,19 @@ export async function updateAffiliateStats(affiliateId: string) {
       totalCommissionEarned: round2(pending + Math.max(pool, paid)),
     },
   });
+}
+
+/** Refreshes every balance a conversion touches: the seller, the legacy parent, and each paid override slot. */
+export async function updateStatsForConversion(conversion: {
+  id: string;
+  affiliateId: string;
+  parentAffiliateId: string | null;
+}) {
+  const overrides = await prisma.conversionOverride.findMany({
+    where: { conversionId: conversion.id },
+    select: { affiliateId: true },
+  });
+  const ids = new Set<string>([conversion.affiliateId, ...overrides.map((o) => o.affiliateId)]);
+  if (conversion.parentAffiliateId) ids.add(conversion.parentAffiliateId);
+  for (const id of ids) await updateAffiliateStats(id);
 }

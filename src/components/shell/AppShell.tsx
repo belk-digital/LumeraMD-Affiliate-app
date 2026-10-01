@@ -42,7 +42,7 @@ function SideLink({ item, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
-/** Violet sidebar + white top bar frame shared by the admin panel and the affiliate dashboard. */
+/** Brand-colored sidebar + white top bar frame shared by the admin panel and the affiliate dashboard. */
 export default function AppShell({
   mainNav,
   bottomNav,

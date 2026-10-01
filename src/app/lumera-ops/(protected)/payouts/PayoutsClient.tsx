@@ -150,8 +150,8 @@ export function PayoutsClient({
         />
         <StatCard 
           icon={<Users className="w-5 h-5" />} 
-          iconBg="bg-purple-100" 
-          iconColor="text-purple-600"
+          iconBg="bg-primary-light" 
+          iconColor="text-primary"
           label="Affiliates Paid" 
           value={stats.affiliatesPaid.total} 
           trend={stats.affiliatesPaid.trend} 

@@ -33,6 +33,12 @@ function buildMainNav({
       badge: pendingApplications,
     },
     {
+      href: "/lumera-ops/signups",
+      label: "Signups",
+      icon: "document",
+      isActive: (p) => p.startsWith("/lumera-ops/signups"),
+    },
+    {
       href: "/lumera-ops/affiliates",
       label: "All Affiliates",
       icon: "users",

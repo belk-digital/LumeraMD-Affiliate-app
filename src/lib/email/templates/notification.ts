@@ -15,7 +15,10 @@ type Variant =
   | "payout-approved"
   | "payout-paid"
   | "payout-rejected"
-  | "application-rejected";
+  | "application-rejected"
+  | "membership-requested"
+  | "membership-active"
+  | "membership-alert";
 
 const ICON: Record<Variant, string> = {
   conversion: "🎉",
@@ -25,6 +28,9 @@ const ICON: Record<Variant, string> = {
   "payout-paid": "💸",
   "payout-rejected": "⚠️",
   "application-rejected": "📋",
+  "membership-requested": "📩",
+  "membership-active": "✅",
+  "membership-alert": "⚠️",
 };
 
 export interface NotificationEmailData {

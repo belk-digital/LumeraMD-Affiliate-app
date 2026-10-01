@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Affiliate } from "@/generated/prisma/client";
-import { updateAffiliateStats } from "@/lib/affiliates/stats";
+import { updateAffiliateStats, updateStatsForConversion } from "@/lib/affiliates/stats";
+import { computeUnilevel } from "@/lib/affiliates/unilevel";
 import { round2 } from "@/lib/metrics";
 import {
   notifyNewConversion,
@@ -91,28 +92,40 @@ export async function attributeOrder(params: {
     order.customerEmail !== null &&
     order.customerEmail.toLowerCase() === affiliate.userEmail.toLowerCase();
 
-  const { eligibleSubtotal, commissionAmount } = computeCommission(affiliate, order);
+  const legacy = computeCommission(affiliate, order);
+  const { eligibleSubtotal } = legacy;
+  let commissionAmount = legacy.commissionAmount;
+  let sellerRate = affiliate.commissionRate;
 
   const pendingUntil = new Date();
   pendingUntil.setDate(pendingUntil.getDate() + affiliate.pendingPeriodDays);
 
-  // Multi-tier: the recruiter earns an override on top, off the same eligible subtotal as the
-  // seller's own commission (it is not taken out of the seller's share). The rate is the
-  // PARENT's, and only an approved parent earns it.
+  const settings = await prisma.affiliateSettings.upsert({
+    where: { id: "global" },
+    update: {},
+    create: { id: "global" },
+  });
+
+  // Multi-tier: recruiters earn overrides on top, off the same eligible subtotal as the seller's
+  // own commission (it is not taken out of the seller's share). Two modes:
+  //  - legacy: one approved parent earns a flat override rate
+  //  - unilevel: seller tier rate + up to five qualified uplines (see computeUnilevel)
   let parentAffiliateId: string | null = null;
   let parentCommissionRate: number | null = null;
   let parentCommissionAmount: number | null = null;
-  if (affiliate.parentAffiliateId) {
+  let overridePayouts: { affiliateId: string; level: number; slot: number; rate: number; amount: number }[] = [];
+
+  if (settings.unilevelEnabled) {
+    const outcome = await computeUnilevel({ seller: affiliate, eligibleSubtotal, settings });
+    sellerRate = outcome.result.sellerRate;
+    commissionAmount = outcome.result.sellerCommission;
+    overridePayouts = outcome.payouts;
+  } else if (affiliate.parentAffiliateId) {
     const parent = await prisma.affiliate.findUnique({
       where: { id: affiliate.parentAffiliateId },
     });
     if (parent && parent.status === "approved") {
       // A blank rate on the parent means "use the program default".
-      const settings = await prisma.affiliateSettings.upsert({
-        where: { id: "global" },
-        update: {},
-        create: { id: "global" },
-      });
       const rate = parent.parentOverrideRate ?? settings.defaultParentOverrideRate;
       parentAffiliateId = parent.id;
       parentCommissionRate = rate;
@@ -130,7 +143,7 @@ export async function attributeOrder(params: {
       orderSubtotal: order.subtotalPrice,
       orderDiscount: order.totalDiscounts,
       eligibleSubtotal,
-      commissionRate: affiliate.commissionRate,
+      commissionRate: sellerRate,
       commissionAmount: selfReferralDetected ? 0 : commissionAmount,
       parentAffiliateId,
       parentCommissionRate,
@@ -139,6 +152,9 @@ export async function attributeOrder(params: {
       pendingUntil: selfReferralDetected ? null : pendingUntil,
       selfReferralDetected,
       fraudScore: selfReferralDetected ? 100 : 0,
+      overrides: selfReferralDetected
+        ? undefined
+        : { create: overridePayouts },
     },
   });
 
@@ -158,6 +174,19 @@ export async function attributeOrder(params: {
       title: `You earned $${conversion.commissionAmount.toFixed(2)}`,
       body: `Order ${order.name} — pending for ${affiliate.pendingPeriodDays} days before it's available for payout.`,
     });
+  }
+
+  for (const payout of selfReferralDetected ? [] : overridePayouts) {
+    await updateAffiliateStats(payout.affiliateId);
+    const upline = await prisma.affiliate.findUnique({ where: { id: payout.affiliateId } });
+    if (upline) {
+      await notifyParentOverrideEarning(upline, payout.amount);
+      await createNotification(upline.id, {
+        type: "team_earning",
+        title: `Your team earned you $${payout.amount.toFixed(2)}`,
+        body: "Someone on your team made a sale.",
+      });
+    }
   }
 
   if (parentAffiliateId && parentCommissionAmount) {
@@ -189,10 +218,7 @@ export async function reverseConversion(shopifyOrderId: string, reason: string) 
     data: { status: "reversed", reversedReason: reason },
   });
 
-  await updateAffiliateStats(updated.affiliateId);
-  if (updated.parentAffiliateId) {
-    await updateAffiliateStats(updated.parentAffiliateId);
-  }
+  await updateStatsForConversion(updated);
 
   await createNotification(updated.affiliateId, {
     type: "commission_reversed",

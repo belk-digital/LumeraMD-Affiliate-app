@@ -143,8 +143,8 @@ export function ConversionsClient({
         />
         <StatCard 
           icon={<Clock className="w-5 h-5" />} 
-          iconBg="bg-indigo-100" 
-          iconColor="text-indigo-600"
+          iconBg="bg-primary-light" 
+          iconColor="text-primary"
           label="Pending Commission" 
           value={`$${stats.pendingCommission.total.toFixed(2)}`} 
           trend={stats.pendingCommission.trend} 

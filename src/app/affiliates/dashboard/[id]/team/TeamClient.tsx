@@ -204,11 +204,11 @@ export default function TeamClient({
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorMembers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#17324E" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#17324E" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8eaf3" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e3e8ee" />
                 <XAxis 
                   dataKey="name" 
                   tick={{fontSize: 10, fill: '#64748b'}} 
@@ -227,7 +227,7 @@ export default function TeamClient({
                   itemStyle={{ fontSize: '12px' }}
                   labelStyle={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}
                 />
-                <Area type="monotone" dataKey="members" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#colorMembers)" />
+                <Area type="monotone" dataKey="members" stroke="#17324E" strokeWidth={2} fillOpacity={1} fill="url(#colorMembers)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

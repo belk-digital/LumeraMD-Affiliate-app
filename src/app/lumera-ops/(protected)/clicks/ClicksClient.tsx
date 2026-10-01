@@ -136,8 +136,8 @@ export function ClicksClient({
         />
         <StatCard 
           icon={<ShoppingCart className="w-5 h-5" />} 
-          iconBg="bg-purple-50" 
-          iconColor="text-purple-600"
+          iconBg="bg-primary-light" 
+          iconColor="text-primary"
           label="Clicks Converted" 
           value={stats.clicksConverted.total} 
           trend={stats.clicksConverted.trend} 

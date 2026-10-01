@@ -5,6 +5,7 @@ import { createNotification } from "@/lib/notifications/create";
 export async function processPendingConversions() {
   const due = await prisma.affiliateConversion.findMany({
     where: { status: "pending", pendingUntil: { lte: new Date() } },
+    include: { overrides: { select: { affiliateId: true } } },
   });
 
   const affiliateIds = new Set<string>();
@@ -19,6 +20,7 @@ export async function processPendingConversions() {
     if (conversion.parentAffiliateId) {
       affiliateIds.add(conversion.parentAffiliateId);
     }
+    for (const o of conversion.overrides) affiliateIds.add(o.affiliateId);
 
     const tally = maturedByAffiliate.get(conversion.affiliateId) ?? { count: 0, total: 0 };
     tally.count += 1;

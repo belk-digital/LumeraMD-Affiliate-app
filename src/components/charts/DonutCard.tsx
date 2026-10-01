@@ -14,7 +14,7 @@ export interface DonutSlice {
   color: string;
 }
 
-const VIOLET = "#4f46e5";
+const BRAND = "#17324E";
 
 export default function DonutCard({
   title,
@@ -23,7 +23,7 @@ export default function DonutCard({
   format = "money",
   href,
   hrefLabel = "View all",
-  variant = "violet",
+  variant = "brand",
   footer,
   index = 0,
 }: {
@@ -33,28 +33,28 @@ export default function DonutCard({
   format?: ValueFormat;
   href?: string;
   hrefLabel?: string;
-  /** Violet card with light marks, or a white card with regular ones. */
-  variant?: "violet" | "white";
+  /** Brand-colored card with light marks, or a white card with regular ones. */
+  variant?: "brand" | "white";
   footer?: React.ReactNode;
   index?: number;
 }) {
   const reduced = useReducedMotion();
-  const violet = variant === "violet";
+  const brand = variant === "brand";
   const total = slices.reduce((acc, s) => acc + s.value, 0);
   const data = slices.filter((s) => s.value > 0);
 
   const text = {
-    title: violet ? "text-white" : "text-ink",
-    link: violet ? "text-white/90 hover:text-white" : "text-primary",
-    label: violet ? "text-white/70" : "text-ink/60",
-    sub: violet ? "text-white/60" : "text-ink/40",
-    total: violet ? "text-white" : "text-ink",
+    title: brand ? "text-white" : "text-ink",
+    link: brand ? "text-white/90 hover:text-white" : "text-primary",
+    label: brand ? "text-white/70" : "text-ink/60",
+    sub: brand ? "text-white/60" : "text-ink/40",
+    total: brand ? "text-white" : "text-ink",
   };
 
   return (
     <div
       className={`animate-fade-up flex h-full flex-col rounded-2xl border p-5 shadow-sm ${
-        violet ? "border-primary bg-primary text-white" : "border-line bg-white"
+        brand ? "border-primary bg-primary text-white" : "border-line bg-white"
       }`}
       style={{ "--delay": `${index * 70}ms` } as React.CSSProperties}
     >
@@ -81,7 +81,7 @@ export default function DonutCard({
                 outerRadius={90}
                 startAngle={90}
                 endAngle={-270}
-                stroke={violet ? VIOLET : "#ffffff"}
+                stroke={brand ? BRAND : "#ffffff"}
                 strokeWidth={2}
                 isAnimationActive={!reduced}
                 animationBegin={150}
@@ -89,7 +89,7 @@ export default function DonutCard({
                 animationEasing="ease-out"
               >
                 {total === 0 ? (
-                  <Cell fill={violet ? "rgba(255,255,255,0.18)" : "#eceef7"} />
+                  <Cell fill={brand ? "rgba(255,255,255,0.18)" : "#e9edf2"} />
                 ) : (
                   data.map((d) => <Cell key={d.key} fill={d.color} />)
                 )}
@@ -100,7 +100,7 @@ export default function DonutCard({
                   contentStyle={{
                     borderRadius: 12,
                     border: "none",
-                    background: "#1b1d28",
+                    background: "#1b222c",
                     color: "#fff",
                     fontSize: 12,
                   }}
@@ -128,7 +128,7 @@ export default function DonutCard({
                 <div className={`text-sm ${text.label}`}>{s.label}</div>
                 <div
                   className={`font-heading text-lg font-semibold leading-tight ${
-                    violet ? "text-white" : "text-ink"
+                    brand ? "text-white" : "text-ink"
                   }`}
                 >
                   {formatValue(s.value, format)}
@@ -143,7 +143,7 @@ export default function DonutCard({
       </div>
 
       {footer && (
-        <div className={`mt-5 border-t pt-4 ${violet ? "border-white/20" : "border-line"}`}>
+        <div className={`mt-5 border-t pt-4 ${brand ? "border-white/20" : "border-line"}`}>
           {footer}
         </div>
       )}

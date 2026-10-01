@@ -23,7 +23,7 @@ export interface ChartTab {
 
 export type ChartPoint = { label: string; full: string } & Record<string, number | string>;
 
-const INDIGO = "#4f46e5";
+const BRAND = "#17324E";
 
 function tooltipValue(tab: ChartTab, v: number) {
   if (tab.kind === "count") return `${v} ${v === 1 ? tab.one : tab.other}`;
@@ -110,11 +110,11 @@ export default function PerformanceChart({
           >
             <defs>
               <linearGradient id="perfFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={INDIGO} stopOpacity={0.22} />
-                <stop offset="100%" stopColor={INDIGO} stopOpacity={0} />
+                <stop offset="0%" stopColor={BRAND} stopOpacity={0.22} />
+                <stop offset="100%" stopColor={BRAND} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#e8eaf3" vertical={false} />
+            <CartesianGrid stroke="#e3e8ee" vertical={false} />
             <XAxis
               dataKey="label"
               axisLine={false}
@@ -128,7 +128,7 @@ export default function PerformanceChart({
                   textAnchor="middle"
                   fontSize={12}
                   fontWeight={payload.value === active ? 600 : 400}
-                  fill={payload.value === active ? INDIGO : "#1b1d2899"}
+                  fill={payload.value === active ? BRAND : "#1b222c99"}
                 >
                   {payload.value}
                 </text>
@@ -139,19 +139,19 @@ export default function PerformanceChart({
               tickLine={false}
               width={48}
               allowDecimals={false}
-              tick={{ fontSize: 12, fill: "#1b1d2899" }}
+              tick={{ fontSize: 12, fill: "#1b222c99" }}
               tickFormatter={(v: number) => axisValue(tab, v)}
             />
             <Tooltip
-              cursor={{ stroke: "#c7cbf2", strokeDasharray: "4 4" }}
+              cursor={{ stroke: "#bccbdb", strokeDasharray: "4 4" }}
               content={({ active: isActive, payload }) => {
                 if (!isActive || !payload?.length) return null;
                 const p = payload[0].payload as ChartPoint;
                 return (
-                  <div className="rounded-xl bg-[#1b1d28] px-3.5 py-2.5 text-white shadow-lg">
+                  <div className="rounded-xl bg-[#1b222c] px-3.5 py-2.5 text-white shadow-lg">
                     <div className="text-xs text-white/70">{p.full}</div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-sm font-medium">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#818cf8]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#8fb0cf]" />
                       {tooltipValue(tab, Number(p[tab.key]))}
                     </div>
                   </div>
@@ -161,10 +161,10 @@ export default function PerformanceChart({
             <Area
               type="monotone"
               dataKey={tab.key}
-              stroke={INDIGO}
+              stroke={BRAND}
               strokeWidth={2.5}
               fill="url(#perfFill)"
-              activeDot={{ r: 5, fill: INDIGO, stroke: "#fff", strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: BRAND, stroke: "#fff", strokeWidth: 2 }}
               isAnimationActive={!reduced}
               animationDuration={1100}
               animationEasing="ease-out"

@@ -11,6 +11,13 @@ interface Values {
   defaultPendingPeriodDays: number;
   defaultMinimumPayoutThreshold: number;
   defaultParentOverrideRate: number;
+  unilevelEnabled: boolean;
+  membershipCommissionEnabled: boolean;
+  unilevelMinPersonalSales: number;
+  unilevelRequiredRecruits: number;
+  unilevelActiveRecruitMinSales: number;
+  unilevelSlotRates: number[];
+  unilevelSellerTiers: { name: string; minMonthlySales: number; rate: number }[];
 }
 
 const inputClass =
@@ -44,6 +51,19 @@ export default function SettingsForm({ initial }: { initial: Values }) {
   function set<K extends keyof Values>(key: K, value: Values[K]) {
     setV((prev) => ({ ...prev, [key]: value }));
     setStatus("idle");
+  }
+
+  function setTier(i: number, patch: Partial<Values["unilevelSellerTiers"][number]>) {
+    set(
+      "unilevelSellerTiers",
+      v.unilevelSellerTiers.map((t, idx) => (idx === i ? { ...t, ...patch } : t)),
+    );
+  }
+  function setSlot(i: number, value: number) {
+    set(
+      "unilevelSlotRates",
+      v.unilevelSlotRates.map((r, idx) => (idx === i ? value : r)),
+    );
   }
 
   const num = (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -159,6 +179,133 @@ export default function SettingsForm({ initial }: { initial: Values }) {
               className={inputClass}
               value={v.defaultMinimumPayoutThreshold}
               onChange={(e) => set("defaultMinimumPayoutThreshold", num(e))}
+            />
+          </Field>
+        </div>
+      </section>
+
+      <section className="space-y-5 rounded-2xl border border-line bg-white p-5 shadow-sm">
+        <div>
+          <h2 className="font-heading text-base font-semibold text-ink">Unilevel compensation plan</h2>
+          <p className="mt-0.5 text-xs text-ink/50">
+            Sellers earn a tiered rate on their monthly sales, and up to five qualified uplines earn
+            overrides. When off, the flat commission and single team override above apply.
+          </p>
+        </div>
+
+        <label className="flex items-start gap-2.5 text-sm text-ink/80">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-line accent-primary"
+            checked={v.unilevelEnabled}
+            onChange={(e) => set("unilevelEnabled", e.target.checked)}
+          />
+          <span>
+            Use the unilevel plan for new orders
+            <span className="block text-xs text-ink/40">
+              Only affects orders placed after you save. Existing commissions are not recalculated.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-2.5 text-sm text-ink/80">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-line accent-primary"
+            checked={v.membershipCommissionEnabled}
+            onChange={(e) => set("membershipCommissionEnabled", e.target.checked)}
+          />
+          <span>
+            Pay reps commission on membership payments
+            <span className="block text-xs text-ink/40">
+              When a customer a rep referred pays their monthly membership, the rep earns commission
+              on it like a product sale (and uplines earn overrides if the unilevel plan is on).
+              Off until the client confirms membership fees count as sales.
+            </span>
+          </span>
+        </label>
+
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-ink/80">Seller tiers (by monthly personal sales)</h3>
+          <div className="space-y-2">
+            {v.unilevelSellerTiers.map((t, i) => (
+              <div key={t.name} className="grid grid-cols-[1fr_1fr_1fr] items-center gap-3">
+                <span className="text-sm text-ink/70">{t.name}</span>
+                <input
+                  type="number"
+                  min={0}
+                  disabled={i === 0}
+                  aria-label={`${t.name} minimum monthly sales`}
+                  className={inputClass}
+                  value={t.minMonthlySales}
+                  onChange={(e) => setTier(i, { minMonthlySales: num(e) })}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  max={100}
+                  aria-label={`${t.name} rate percent`}
+                  className={inputClass}
+                  value={t.rate}
+                  onChange={(e) => setTier(i, { rate: num(e) })}
+                />
+              </div>
+            ))}
+            <p className="text-xs text-ink/40">Columns: tier, minimum monthly sales ($), seller rate (%).</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-ink/80">Override rates by paid slot (%)</h3>
+          <div className="grid grid-cols-5 gap-3">
+            {v.unilevelSlotRates.map((r, i) => (
+              <div key={i}>
+                <label className="mb-1 block text-xs text-ink/50">Slot {i + 1}</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  max={100}
+                  className={inputClass}
+                  value={r}
+                  onChange={(e) => setSlot(i, num(e))}
+                />
+              </div>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-ink/40">
+            Slot 1 goes to the first qualified upline, slot 2 to the next, and so on. Unqualified
+            uplines are skipped. Unfilled slots stay with the company.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Recruits required" hint="Active recruits an upline needs to qualify.">
+            <input
+              type="number"
+              min={0}
+              className={inputClass}
+              value={v.unilevelRequiredRecruits}
+              onChange={(e) => set("unilevelRequiredRecruits", num(e))}
+            />
+          </Field>
+          <Field label="Personal sales required ($/mo)" hint="An upline's own monthly sales to qualify. 0 = none.">
+            <input
+              type="number"
+              min={0}
+              className={inputClass}
+              value={v.unilevelMinPersonalSales}
+              onChange={(e) => set("unilevelMinPersonalSales", num(e))}
+            />
+          </Field>
+          <Field label="Recruit is active at ($/mo)" hint="Monthly sales for a recruit to count. 0 = any approved recruit.">
+            <input
+              type="number"
+              min={0}
+              className={inputClass}
+              value={v.unilevelActiveRecruitMinSales}
+              onChange={(e) => set("unilevelActiveRecruitMinSales", num(e))}
             />
           </Field>
         </div>

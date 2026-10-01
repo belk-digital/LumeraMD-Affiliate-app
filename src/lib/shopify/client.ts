@@ -60,6 +60,10 @@ export async function createDiscountCode(params: {
   valueType: "percentage" | "fixed_amount";
   value: number;
 }) {
+  // Local testing: SKIP_SHOPIFY=true in .env.local stops this creating real discount codes in the
+  // live store. Everything else behaves as if it had worked.
+  if (process.env.SKIP_SHOPIFY === "true") return { id: "skipped-in-dev" };
+
   const mutation = /* GraphQL */ `
     mutation discountCodeBasicCreate($basicCodeDiscount: DiscountCodeBasicInput!) {
       discountCodeBasicCreate(basicCodeDiscount: $basicCodeDiscount) {
@@ -117,6 +121,7 @@ export async function registerWebhook(topic: string, address: string) {
 }
 
 export async function deleteDiscountCodeByString(code: string) {
+  if (process.env.SKIP_SHOPIFY === "true") return true; // see createDiscountCode
   const query = `
     query getDiscountByCode($code: String!) {
       codeDiscountNodeByCode(code: $code) {

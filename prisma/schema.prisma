@@ -91,6 +91,7 @@ model Affiliate {
   clicks                AffiliateClick[]
   conversions           AffiliateConversion[] @relation("AffiliateConversions")
   parentConversions      AffiliateConversion[] @relation("ParentOverrideConversions")
+  overrideEarnings      ConversionOverride[]  @relation("EarnedOverrides")
   payouts               AffiliatePayout[]
   notifications         Notification[]
 
@@ -140,6 +141,10 @@ model AffiliateConversion {
   parentCommissionRate  Float?
   parentCommissionAmount Float?
 
+  // Unilevel plan: one row per paid override slot (up to 5). Empty for legacy single-parent
+  // conversions, which use the parentCommission* columns above instead.
+  overrides             ConversionOverride[]
+
   status                ConversionStatus  @default(pending)
   pendingUntil          DateTime?
   reversedReason        String?
@@ -153,6 +158,23 @@ model AffiliateConversion {
 
   @@index([affiliateId])
   @@map("affiliate_conversions")
+}
+
+model ConversionOverride {
+  id            String              @id @default(cuid())
+  conversionId  String
+  conversion    AffiliateConversion @relation(fields: [conversionId], references: [id], onDelete: Cascade)
+  affiliateId   String
+  affiliate     Affiliate           @relation("EarnedOverrides", fields: [affiliateId], references: [id])
+  level         Int                 // genealogy level above the seller (1 = direct recruiter)
+  slot          Int                 // paid override slot 1..5
+  rate          Float
+  amount        Float
+  createdAt     DateTime            @default(now())
+
+  @@index([affiliateId, createdAt])
+  @@index([conversionId])
+  @@map("conversion_overrides")
 }
 
 model AffiliatePayout {
@@ -206,6 +228,106 @@ model AffiliateApplication {
   @@map("affiliate_applications")
 }
 
+// Public "become a sales rep" signup. Deliberately light: only an email is required so we can reach
+// the person; a resume can stand in for the rest. Separate from AffiliateApplication (which
+// requires a W-9) — a rep is converted to an agent/affiliate on review.
+model SalesRepSignup {
+  id                    String            @id @default(cuid())
+  firstName             String?
+  lastName              String?
+  email                 String
+  phone                 String?
+  annualGrossSales      Float?
+  salesType             String?
+
+  resumeStorageKey      String?
+  resumeFileName        String?
+  resumeFileType        String?
+
+  referredByAffiliateId String?
+  status                AffiliateStatus   @default(pending)
+  reviewNotes           String?
+  linkedAffiliateId     String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([email])
+  @@map("sales_rep_signups")
+}
+
+enum CustomerSignupStatus {
+  pending_payment
+  active
+  past_due
+  cancelled
+}
+
+// A customer choosing a monthly membership (plan keys live in src/lib/membership/plans.ts).
+// Created as pending_payment; recurring billing activates it.
+model CustomerSignup {
+  id                    String               @id @default(cuid())
+  firstName             String
+  lastName              String
+  email                 String
+  phone                 String?
+  plan                  String
+  wantsTestKit          Boolean              @default(false)
+
+  referredByAffiliateId String?
+  status                CustomerSignupStatus @default(pending_payment)
+
+  // Membership lifecycle. A payment (recorded by an admin today, by a payment provider later)
+  // activates the membership and pushes currentPeriodEnd out by a month; a lapse flips it to
+  // past_due. The member discount code exists in Shopify only while the membership is in good
+  // standing (memberDiscountActive).
+  activatedAt           DateTime?
+  currentPeriodEnd      DateTime?
+  cancelledAt           DateTime?
+  memberDiscountCode    String?              @unique
+  memberDiscountActive  Boolean              @default(false)
+  consultationsUsed     Int                  @default(0)
+
+  payments              MembershipPayment[]
+  loginTokens           CustomerLoginToken[]
+
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@index([email])
+  @@map("customer_signups")
+}
+
+// One row per membership payment. (source, externalId) is unique so a provider webhook that is
+// delivered twice can't credit the same payment twice.
+model MembershipPayment {
+  id          String         @id @default(cuid())
+  customerId  String
+  customer    CustomerSignup @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  amount      Float
+  source      String         // "manual" today; a provider name later
+  externalId  String?
+  periodStart DateTime
+  periodEnd   DateTime
+  note        String?
+  createdAt   DateTime       @default(now())
+
+  @@unique([source, externalId])
+  @@index([customerId, createdAt])
+  @@map("membership_payments")
+}
+
+model CustomerLoginToken {
+  id         String         @id @default(cuid())
+  customerId String
+  customer   CustomerSignup @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  token      String         @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime       @default(now())
+
+  @@map("customer_login_tokens")
+}
+
 model AdminLoginToken {
   id        String    @id @default(cuid())
   email     String
@@ -251,6 +373,22 @@ model AffiliateSettings {
   defaultPendingPeriodDays      Int      @default(30)
   defaultMinimumPayoutThreshold Float    @default(50)
   defaultParentOverrideRate     Float    @default(3)
+
+  // Unilevel compensation plan (from the client's spreadsheet). Off by default: when off, the
+  // legacy flat-rate + single-parent override applies. Values the client hasn't specified
+  // (personal sales requirement, what counts as an "active" recruit) default to the least
+  // restrictive setting and are meant to be tuned here.
+  // Whether membership payments earn the referring rep commission, like a product sale. Off until
+  // the client confirms membership fees count as sales.
+  membershipCommissionEnabled   Boolean  @default(false)
+
+  unilevelEnabled               Boolean  @default(false)
+  unilevelMinPersonalSales      Float    @default(0)
+  unilevelRequiredRecruits      Int      @default(3)
+  unilevelActiveRecruitMinSales Float    @default(0)
+  unilevelSlotRates             Float[]  @default([5, 3, 3, 3, 1])
+  unilevelSellerTiers           Json     @default("[{\"name\":\"New Sales Person\",\"minMonthlySales\":0,\"rate\":10},{\"name\":\"Developing Producer\",\"minMonthlySales\":2500,\"rate\":15},{\"name\":\"Top Seller Tier\",\"minMonthlySales\":10000,\"rate\":20}]")
+
   updatedAt                     DateTime @updatedAt
 
   @@map("affiliate_settings")

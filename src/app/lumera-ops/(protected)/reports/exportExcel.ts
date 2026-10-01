@@ -29,7 +29,7 @@ type Stats = {
   totalClicks: StatBlock;
 };
 
-const BRAND = "4F46E5"; // matches the app's primary color, used for header fills
+const BRAND = "17324E"; // matches the app's primary color, used for header fills
 
 /** Rasterizes a live recharts <svg> node to a PNG data URL, at 2x for crisp embedding. */
 function svgNodeToPngDataUrl(svg: SVGSVGElement): Promise<{ dataUrl: string; width: number; height: number }> {

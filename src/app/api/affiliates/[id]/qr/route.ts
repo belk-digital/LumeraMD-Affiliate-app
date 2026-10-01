@@ -20,13 +20,13 @@ export async function GET(
   const appBaseUrl = process.env.APP_BASE_URL ?? "";
 
   // Two distinct links share this endpoint: the order/referral link (default) sends shoppers to
-  // the store, while the team-invite link sends prospective sub-affiliates to the application
-  // form. They must never encode to the same QR image or a sub-affiliate invite would silently
-  // hand out the order link instead.
+  // the store, while the team-invite link sends prospective sales reps to the sales rep signup
+  // form. They must never encode to the same QR image or a team invite would silently hand out
+  // the order link instead.
   const type = req.nextUrl.searchParams.get("type") === "invite" ? "invite" : "referral";
   const targetUrl =
     type === "invite"
-      ? `${appBaseUrl}/affiliates/apply?ref=${affiliate.referralSlug}`
+      ? `${appBaseUrl}/sales-reps/signup?ref=${affiliate.referralSlug}`
       : `${appBaseUrl}/ref/${affiliate.referralSlug}`;
 
   const buffer = await QRCode.toBuffer(targetUrl, {

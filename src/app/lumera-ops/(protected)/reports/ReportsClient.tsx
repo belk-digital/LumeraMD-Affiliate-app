@@ -232,8 +232,8 @@ export function ReportsClient({
         />
         <StatCard 
           icon={<Percent className="w-5 h-5" />} 
-          iconBg="bg-purple-50" 
-          iconColor="text-purple-600"
+          iconBg="bg-primary-light" 
+          iconColor="text-primary"
           label="Total Commission" 
           value={`$${stats.totalCommission.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} 
           trend={stats.totalCommission.trend} 
@@ -256,7 +256,7 @@ export function ReportsClient({
             <h2 className="font-heading text-lg font-bold text-ink">Revenue & Commission</h2>
             <div className="flex items-center gap-4 text-xs font-semibold">
               <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]"></div>Revenue</span>
-              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#6366f1]"></div>Commission</span>
+              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#17324E]"></div>Commission</span>
             </div>
           </div>
           <div className="h-[250px] w-full" ref={revenueChartRef}>
@@ -271,7 +271,7 @@ export function ReportsClient({
                   formatter={(value: any) => [`$${Number(value).toFixed(2)}`, '']}
                 />
                 <Bar dataKey="revenue" name="Revenue" fill="#38bdf8" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                <Bar dataKey="commission" name="Commission" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="commission" name="Commission" fill="#17324E" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -283,7 +283,7 @@ export function ReportsClient({
             <h2 className="font-heading text-lg font-bold text-ink">Clicks vs Conversions</h2>
             <div className="flex items-center gap-4 text-xs font-semibold">
               <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#14b8a6]"></div>Clicks</span>
-              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6]"></div>Conversions</span>
+              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#5b84a8]"></div>Conversions</span>
             </div>
           </div>
           <div className="h-[250px] w-full" ref={clicksChartRef}>
@@ -296,7 +296,7 @@ export function ReportsClient({
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />
                 <Line type="monotone" dataKey="clicks" name="Clicks" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3, fill: '#14b8a6' }} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="conversions" name="Conversions" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3, fill: '#8b5cf6' }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="conversions" name="Conversions" stroke="#5b84a8" strokeWidth={2} dot={{ r: 3, fill: '#5b84a8' }} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

@@ -21,7 +21,7 @@ export default async function TeamPage({
 
   const appBaseUrl = process.env.APP_BASE_URL ?? "";
   const referralLink = `${appBaseUrl}/ref/${affiliate.referralSlug}`;
-  const inviteLink = `${appBaseUrl}/affiliates/apply?ref=${affiliate.referralSlug}`;
+  const inviteLink = `${appBaseUrl}/sales-reps/signup?ref=${affiliate.referralSlug}`;
 
   return (
     <DashboardShell

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/admin/requireAdmin";
+import { planFromSettings } from "@/lib/affiliates/unilevel";
 import SettingsForm from "./SettingsForm";
 
 export default async function AdminSettingsPage() {
@@ -32,6 +33,13 @@ export default async function AdminSettingsPage() {
           defaultPendingPeriodDays: settings.defaultPendingPeriodDays,
           defaultMinimumPayoutThreshold: settings.defaultMinimumPayoutThreshold,
           defaultParentOverrideRate: settings.defaultParentOverrideRate,
+          unilevelEnabled: settings.unilevelEnabled,
+          membershipCommissionEnabled: settings.membershipCommissionEnabled,
+          unilevelMinPersonalSales: settings.unilevelMinPersonalSales,
+          unilevelRequiredRecruits: settings.unilevelRequiredRecruits,
+          unilevelActiveRecruitMinSales: settings.unilevelActiveRecruitMinSales,
+          unilevelSlotRates: settings.unilevelSlotRates,
+          unilevelSellerTiers: planFromSettings(settings).sellerTiers,
         }}
       />
 

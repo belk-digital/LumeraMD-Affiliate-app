@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrResponse } from "@/lib/admin/requireAdmin";
-import { updateAffiliateStats } from "@/lib/affiliates/stats";
+import { updateStatsForConversion } from "@/lib/affiliates/stats";
 import { createNotification } from "@/lib/notifications/create";
 
 export async function POST(
@@ -22,10 +22,7 @@ export async function POST(
     },
   });
 
-  await updateAffiliateStats(conversion.affiliateId);
-  if (conversion.parentAffiliateId) {
-    await updateAffiliateStats(conversion.parentAffiliateId);
-  }
+  await updateStatsForConversion(conversion);
 
   await createNotification(conversion.affiliateId, {
     type: "commission_reversed",

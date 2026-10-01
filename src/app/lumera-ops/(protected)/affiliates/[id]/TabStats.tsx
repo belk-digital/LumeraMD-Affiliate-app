@@ -60,7 +60,7 @@ export function TabStats({ affiliate }: { affiliate: Record<string, any> }) {
     totalSourceClicks++;
   });
   
-  const colors = ["#6366f1", "#eab308", "#14b8a6", "#3b82f6", "#f43f5e"];
+  const colors = ["#17324E", "#eab308", "#14b8a6", "#3b82f6", "#f43f5e"];
   const pieData = Object.entries(sourceCount)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5) // top 5
@@ -142,8 +142,8 @@ export function TabStats({ affiliate }: { affiliate: Record<string, any> }) {
               <div className="flex items-center gap-1.5 text-primary">
                 <div className="w-2 h-2 rounded-full bg-primary" /> Clicks
               </div>
-              <div className="flex items-center gap-1.5 text-indigo-400">
-                <div className="w-2 h-2 rounded-full bg-indigo-400" /> Conversions
+              <div className="flex items-center gap-1.5 text-[#5b84a8]">
+                <div className="w-2 h-2 rounded-full bg-[#5b84a8]" /> Conversions
               </div>
             </div>
           </div>
@@ -153,15 +153,15 @@ export function TabStats({ affiliate }: { affiliate: Record<string, any> }) {
                 <AreaChart data={areaData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#17324E" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#17324E" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="colorConversions" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#818cf8" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#818cf8" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#5b84a8" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#5b84a8" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8eaf3" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e3e8ee" />
                   <XAxis dataKey="name" tick={{fontSize: 10, fill: '#64748b'}} tickLine={false} axisLine={false} />
                   <YAxis tick={{fontSize: 10, fill: '#64748b'}} tickLine={false} axisLine={false} />
                   <Tooltip 
@@ -169,8 +169,8 @@ export function TabStats({ affiliate }: { affiliate: Record<string, any> }) {
                     itemStyle={{ fontSize: '12px' }}
                     labelStyle={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}
                   />
-                  <Area type="monotone" dataKey="clicks" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#colorClicks)" />
-                  <Area type="monotone" dataKey="conversions" stroke="#818cf8" strokeWidth={2} fillOpacity={1} fill="url(#colorConversions)" />
+                  <Area type="monotone" dataKey="clicks" stroke="#17324E" strokeWidth={2} fillOpacity={1} fill="url(#colorClicks)" />
+                  <Area type="monotone" dataKey="conversions" stroke="#5b84a8" strokeWidth={2} fillOpacity={1} fill="url(#colorConversions)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (

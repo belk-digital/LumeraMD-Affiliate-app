@@ -1,23 +1,32 @@
 import { prisma } from "@/lib/prisma";
+import type { Affiliate, Prisma } from "@/generated/prisma/client";
 import { createDiscountCode } from "@/lib/shopify/client";
 import { notifyAffiliateApproved } from "@/lib/email/notifications";
 import { createNotification } from "@/lib/notifications/create";
 
 function slugify(name: string) {
   const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  return `${base}-${Math.random().toString(36).slice(2, 6)}`;
+  return `${base || "affiliate"}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-export async function createAffiliateFromApplication(applicationId: string) {
-  const application = await prisma.affiliateApplication.findUnique({
-    where: { id: applicationId },
-  });
-  if (!application) throw new Error("Application not found");
-  if (application.linkedAffiliateId) {
-    return prisma.affiliate.findUnique({
-      where: { id: application.linkedAffiliateId },
-    });
-  }
+/**
+ * Creates an approved affiliate with the program defaults, a Shopify discount code and the welcome
+ * notifications. Shared by the affiliate application flow and the sales rep signup flow.
+ *
+ * `afterCreate` runs in the same database transaction as the affiliate insert, so the caller can
+ * link its own record to the new affiliate atomically: if the link fails, the affiliate is rolled
+ * back too, instead of being left behind and blocking every retry as "already an affiliate".
+ * Emails and notifications only go out after the transaction commits.
+ */
+export async function provisionAffiliate(params: {
+  email: string;
+  displayName: string;
+  parentAffiliateId: string | null;
+  afterCreate?: (affiliate: Affiliate, tx: Prisma.TransactionClient) => Promise<void>;
+  /** Skip creating the Shopify discount code (used by tests so they don't touch the live store). */
+  skipShopifyDiscount?: boolean;
+}) {
+  const { email, displayName, parentAffiliateId } = params;
 
   const settings = await prisma.affiliateSettings.upsert({
     where: { id: "global" },
@@ -25,36 +34,37 @@ export async function createAffiliateFromApplication(applicationId: string) {
     create: { id: "global" },
   });
 
-  const slug = slugify(application.displayName);
+  const slug = slugify(displayName);
   const discountCode = slug.toUpperCase().replace(/-/g, "");
 
-  await createDiscountCode({
-    title: `Affiliate: ${application.displayName}`,
-    code: discountCode,
-    valueType: "percentage",
-    value: 10,
-  });
+  if (!params.skipShopifyDiscount) {
+    await createDiscountCode({
+      title: `Affiliate: ${displayName}`,
+      code: discountCode,
+      valueType: "percentage",
+      value: 10,
+    });
+  }
 
-  const affiliate = await prisma.affiliate.create({
-    data: {
-      userEmail: application.email,
-      displayName: application.displayName,
-      status: "approved",
-      referralSlug: slug,
-      shopifyDiscountCode: discountCode,
-      commissionRate: settings.defaultCommissionRate,
-      commissionType: settings.defaultCommissionType,
-      commissionOn: settings.defaultCommissionOn,
-      cookieDurationDays: settings.defaultCookieDurationDays,
-      pendingPeriodDays: settings.defaultPendingPeriodDays,
-      minimumPayoutThreshold: settings.defaultMinimumPayoutThreshold,
-      parentAffiliateId: application.referredByAffiliateId ?? null,
-    },
-  });
-
-  await prisma.affiliateApplication.update({
-    where: { id: application.id },
-    data: { status: "approved", linkedAffiliateId: affiliate.id },
+  const affiliate = await prisma.$transaction(async (tx) => {
+    const created = await tx.affiliate.create({
+      data: {
+        userEmail: email,
+        displayName,
+        status: "approved",
+        referralSlug: slug,
+        shopifyDiscountCode: params.skipShopifyDiscount ? null : discountCode,
+        commissionRate: settings.defaultCommissionRate,
+        commissionType: settings.defaultCommissionType,
+        commissionOn: settings.defaultCommissionOn,
+        cookieDurationDays: settings.defaultCookieDurationDays,
+        pendingPeriodDays: settings.defaultPendingPeriodDays,
+        minimumPayoutThreshold: settings.defaultMinimumPayoutThreshold,
+        parentAffiliateId,
+      },
+    });
+    await params.afterCreate?.(created, tx);
+    return created;
   });
 
   await notifyAffiliateApproved(affiliate);
@@ -68,9 +78,33 @@ export async function createAffiliateFromApplication(applicationId: string) {
     await createNotification(affiliate.parentAffiliateId, {
       type: "recruit_joined",
       title: "Someone you referred just joined",
-      body: `${application.displayName} is now on your team.`,
+      body: `${displayName} is now on your team.`,
     });
   }
 
   return affiliate;
+}
+
+export async function createAffiliateFromApplication(applicationId: string) {
+  const application = await prisma.affiliateApplication.findUnique({
+    where: { id: applicationId },
+  });
+  if (!application) throw new Error("Application not found");
+  if (application.linkedAffiliateId) {
+    return prisma.affiliate.findUnique({
+      where: { id: application.linkedAffiliateId },
+    });
+  }
+
+  return provisionAffiliate({
+    email: application.email,
+    displayName: application.displayName,
+    parentAffiliateId: application.referredByAffiliateId ?? null,
+    afterCreate: async (affiliate, tx) => {
+      await tx.affiliateApplication.update({
+        where: { id: application.id },
+        data: { status: "approved", linkedAffiliateId: affiliate.id },
+      });
+    },
+  });
 }

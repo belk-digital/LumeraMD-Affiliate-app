@@ -28,7 +28,13 @@ export async function getAffiliateOverview(affiliateId: string, days: RangeDays)
     status: VALID,
   });
 
-  const [clicksCur, clicksPrev, clickRows, convRows, convPrev, teamRows, teamPrev] =
+  const overrideWhere = (from: Date, to?: Date) => ({
+    affiliateId,
+    createdAt: { gte: from, ...(to ? { lt: to } : {}) },
+    conversion: { status: VALID },
+  });
+
+  const [clicksCur, clicksPrev, clickRows, convRows, convPrev, legacyTeamRows, legacyTeamPrev, slotRows, slotPrev] =
     await Promise.all([
     prisma.affiliateClick.count({ where: { affiliateId, createdAt: { gte: start } } }),
     prisma.affiliateClick.count({
@@ -55,15 +61,30 @@ export async function getAffiliateOverview(affiliateId: string, days: RangeDays)
       where: teamWhere(prevStart, start),
       _sum: { parentCommissionAmount: true },
     }),
+    prisma.conversionOverride.findMany({
+      where: overrideWhere(start),
+      select: { createdAt: true, amount: true },
+    }),
+    prisma.conversionOverride.aggregate({
+      where: overrideWhere(prevStart, start),
+      _sum: { amount: true },
+    }),
   ]);
+
+  // Team earnings: legacy single-parent overrides plus unilevel override slots.
+  const teamRows = [
+    ...legacyTeamRows.map((c) => ({ createdAt: c.createdAt, amount: c.parentCommissionAmount ?? 0 })),
+    ...slotRows,
+  ];
+  const teamPrevSum = (legacyTeamPrev._sum.parentCommissionAmount ?? 0) + (slotPrev._sum.amount ?? 0);
 
   // Earnings = own commission + team override (both are payable from the same balance). The
   // average stays per-own-order so it isn't skewed by override income.
   const ownCur = convRows.reduce((acc, c) => acc + c.commissionAmount, 0);
   const ownPrev = convPrev._sum.commissionAmount ?? 0;
-  const teamCur = teamRows.reduce((acc, c) => acc + (c.parentCommissionAmount ?? 0), 0);
+  const teamCur = teamRows.reduce((acc, c) => acc + c.amount, 0);
   const commissionCur = ownCur + teamCur;
-  const commissionPrev = ownPrev + (teamPrev._sum.parentCommissionAmount ?? 0);
+  const commissionPrev = ownPrev + teamPrevSum;
   const avgCur = convRows.length > 0 ? ownCur / convRows.length : 0;
   const avgPrev = convPrev._count > 0 ? ownPrev / convPrev._count : 0;
 
@@ -96,7 +117,7 @@ export async function getAffiliateOverview(affiliateId: string, days: RangeDays)
   }
   for (const c of teamRows) {
     const b = buckets.get(dayKey(c.createdAt));
-    if (b) b.commission += c.parentCommissionAmount ?? 0;
+    if (b) b.commission += c.amount;
   }
   const series = dayList.map((d) => {
     const b = buckets.get(dayKey(d))!;
@@ -152,17 +173,33 @@ export async function getTeamOverview(affiliateId: string) {
 
   const inWindow = (d: Date, from: Date, to?: Date) => d >= from && (!to || d < to);
 
-  const overrideRows = await prisma.affiliateConversion.findMany({
-    where: { parentAffiliateId: affiliateId, status: VALID },
-    select: { affiliateId: true, createdAt: true, parentCommissionAmount: true },
-  });
+  const [legacyRows, slotRows] = await Promise.all([
+    prisma.affiliateConversion.findMany({
+      where: { parentAffiliateId: affiliateId, status: VALID },
+      select: { affiliateId: true, createdAt: true, parentCommissionAmount: true },
+    }),
+    prisma.conversionOverride.findMany({
+      where: { affiliateId, conversion: { status: VALID } },
+      select: { createdAt: true, amount: true, level: true, conversion: { select: { affiliateId: true } } },
+    }),
+  ]);
+  // Per-recruit attribution only covers direct recruits' own sales (level 1). Deeper unilevel
+  // earnings still count toward the totals below, they just aren't broken out by member.
+  const overrideRows = [
+    ...legacyRows.map((r) => ({ sellerId: r.affiliateId as string | null, createdAt: r.createdAt, amount: r.parentCommissionAmount ?? 0 })),
+    ...slotRows.map((r) => ({
+      sellerId: r.level === 1 ? r.conversion.affiliateId : null,
+      createdAt: r.createdAt,
+      amount: r.amount,
+    })),
+  ];
   const earnedFrom = new Map<string, number>();
   let earnedTotal = 0;
   let earnedCur = 0;
   let earnedPrev = 0;
   for (const r of overrideRows) {
-    const amt = r.parentCommissionAmount ?? 0;
-    earnedFrom.set(r.affiliateId, (earnedFrom.get(r.affiliateId) ?? 0) + amt);
+    const amt = r.amount;
+    if (r.sellerId) earnedFrom.set(r.sellerId, (earnedFrom.get(r.sellerId) ?? 0) + amt);
     earnedTotal += amt;
     if (inWindow(r.createdAt, start)) earnedCur += amt;
     else if (inWindow(r.createdAt, prevStart, start)) earnedPrev += amt;

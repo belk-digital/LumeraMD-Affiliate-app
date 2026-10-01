@@ -26,7 +26,7 @@ const DEFAULT_POINTS: Point[] = [
   },
 ];
 
-/** Split layout used by login and apply: violet brand panel beside the form. */
+/** Split layout used by login and apply: brand-colored panel beside the form. */
 export default function AuthLayout({
   headline,
   blurb,

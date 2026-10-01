@@ -41,6 +41,12 @@ export default function DashboardShell({
       isActive: (p) => p.startsWith(`${base}/conversions`),
     },
     {
+      href: `${base}/compensation`,
+      label: "Compensation",
+      icon: "dollar",
+      isActive: (p) => p.startsWith(`${base}/compensation`),
+    },
+    {
       href: `${base}/payouts`,
       label: "Payouts",
       icon: "card",

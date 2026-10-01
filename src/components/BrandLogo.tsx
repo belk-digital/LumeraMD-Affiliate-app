@@ -2,7 +2,7 @@ const SRC = "https://www.lumeramd.com/cdn/shop/files/LumerMD_Logo.png?width=240"
 
 /**
  * The source image is an opaque white square. On light backgrounds it's multiply-blended so the
- * white drops out; on the violet brand color it's recolored to white (grayscale → invert) and
+ * white drops out; on the brand color it's recolored to white (grayscale → invert) and
  * screen-blended so its now-black background disappears.
  */
 export default function BrandLogo({

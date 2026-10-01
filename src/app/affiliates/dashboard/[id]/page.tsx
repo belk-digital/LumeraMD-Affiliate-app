@@ -45,6 +45,7 @@ export default async function DashboardPage({
 
   const appBaseUrl = process.env.APP_BASE_URL ?? "";
   const referralLink = `${appBaseUrl}/ref/${affiliate.referralSlug}`;
+  const membershipLink = `${appBaseUrl}/customers/signup?ref=${affiliate.referralSlug}`;
   const name = affiliate.displayName || affiliate.userEmail;
 
   return (
@@ -156,11 +157,13 @@ export default async function DashboardPage({
             <div className="flex flex-col gap-6 sm:flex-row">
               <div className="flex-1 min-w-0 space-y-3 text-sm">
                 <CopyableRow label="Order link" value={referralLink} />
+                <CopyableRow label="Membership link" value={membershipLink} />
                 {affiliate.shopifyDiscountCode && (
                   <CopyableRow label="Discount code" value={affiliate.shopifyDiscountCode} mono />
                 )}
                 <p className="pt-1 text-xs text-ink/45">
-                  Orders placed through your link or code are credited to you automatically.
+                  Orders placed through your link or code are credited to you automatically. Share
+                  your membership link to invite customers to join a membership plan.
                 </p>
               </div>
               <div className="flex flex-col items-center gap-2 sm:border-l sm:border-line sm:pl-6">
@@ -188,7 +191,7 @@ export default async function DashboardPage({
               variant="white"
               index={5}
               slices={[
-                { key: "link", label: "Order link", value: sources.referral_link, color: "#4f46e5" },
+                { key: "link", label: "Order link", value: sources.referral_link, color: "#17324E" },
                 { key: "coupon", label: "Coupon code", value: sources.coupon_code, color: "#e59a35" },
                 { key: "both", label: "Both", value: sources.both, color: "#5aa0f0" },
               ]}

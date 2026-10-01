@@ -5,7 +5,7 @@
 
 import { COLOR } from "@/lib/email/templates/shared";
 
-type Variant = "affiliate" | "admin";
+type Variant = "affiliate" | "admin" | "customer";
 
 const COPY: Record<
   Variant,
@@ -33,6 +33,21 @@ const COPY: Record<
       ["Track Performance", "Monitor clicks, conversions, and sales in real time."],
       ["Process Payouts", "Review and manage affiliate commissions."],
       ["Configure Settings", "Update program settings and resources."],
+    ],
+  },
+  customer: {
+    badge: "Membership",
+    eyebrow: "Member Access",
+    headlineLead: "Your Member Account",
+    headlineAccent: "is Ready",
+    body: "Log in to see your membership, your member discount code, and your included consultations.",
+    cta: "Log in to Your Account",
+    account: "member account",
+    features: [
+      ["Your Plan", "See your membership, status and next billing date."],
+      ["Member Discount", "Your personal code for savings on web pricing."],
+      ["Consultations", "Track the telehealth consultations included in your plan."],
+      ["Test Kits", "See your member price on DNA test kits."],
     ],
   },
   affiliate: {
@@ -82,7 +97,7 @@ export function buildMagicLinkEmail(data: MagicLinkEmailData): string {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="x-apple-disable-message-reformatting" />
-<title>Your LumeraMD ${variant === "admin" ? "admin" : "affiliate"} login link</title>
+<title>Your LumeraMD ${variant} login link</title>
 <style>
   body,table,td,a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
   table,td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
