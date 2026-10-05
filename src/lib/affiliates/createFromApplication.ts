@@ -34,6 +34,17 @@ export async function provisionAffiliate(params: {
     create: { id: "global" },
   });
 
+  // A recruiter an admin has switched off can't gain new team members, even from a signup that was
+  // submitted through their link before the switch.
+  let parentId = parentAffiliateId;
+  if (parentId) {
+    const parent = await prisma.affiliate.findUnique({
+      where: { id: parentId },
+      select: { canRecruit: true },
+    });
+    if (!parent || !parent.canRecruit) parentId = null;
+  }
+
   const slug = slugify(displayName);
   const discountCode = slug.toUpperCase().replace(/-/g, "");
 
@@ -60,7 +71,8 @@ export async function provisionAffiliate(params: {
         cookieDurationDays: settings.defaultCookieDurationDays,
         pendingPeriodDays: settings.defaultPendingPeriodDays,
         minimumPayoutThreshold: settings.defaultMinimumPayoutThreshold,
-        parentAffiliateId,
+        parentAffiliateId: parentId,
+        canRecruit: settings.defaultCanRecruit,
       },
     });
     await params.afterCreate?.(created, tx);

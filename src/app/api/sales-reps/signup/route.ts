@@ -40,11 +40,25 @@ export async function POST(req: NextRequest) {
   const phone = str("phone").slice(0, 40);
   const salesType = str("salesType").slice(0, 200);
   const annualGrossSalesRaw = str("annualGrossSales").replace(/[$,\s]/g, "");
+  const plan = str("plan") || "agent";
   const referralSlug = str("referralSlug") || undefined;
   const resume = form.get("resume");
 
   if (!email || !EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Please enter a valid email." }, { status: 400 });
+  }
+  if (!firstName) {
+    return NextResponse.json({ error: "Please enter your first name." }, { status: 400 });
+  }
+  if (!lastName) {
+    return NextResponse.json({ error: "Please enter your last name." }, { status: 400 });
+  }
+  const phoneDigits = phone.replace(/\D/g, "");
+  if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+    return NextResponse.json({ error: "Please enter a valid phone number." }, { status: 400 });
+  }
+  if (plan !== "agent") {
+    return NextResponse.json({ error: "Please choose a plan." }, { status: 400 });
   }
   const emailLimit = await checkRateLimit("sales-rep-signup-email", email.toLowerCase(), 3, "1 h");
   if (!emailLimit.ok) {
@@ -76,14 +90,15 @@ export async function POST(req: NextRequest) {
     resumeData = { key, name: resume.name.slice(0, 200), type: resume.type };
   }
 
-  const referredByAffiliateId = await resolveReferrerId(req, referralSlug, email);
+  const referredByAffiliateId = await resolveReferrerId(req, referralSlug, email, { forTeam: true });
 
   const signup = await prisma.salesRepSignup.create({
     data: {
-      firstName: firstName || undefined,
-      lastName: lastName || undefined,
+      firstName,
+      lastName,
       email,
-      phone: phone || undefined,
+      phone,
+      plan,
       annualGrossSales,
       salesType: salesType || undefined,
       resumeStorageKey: resumeData?.key,

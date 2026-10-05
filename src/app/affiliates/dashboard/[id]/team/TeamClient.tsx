@@ -20,12 +20,15 @@ export default function TeamClient({
   affiliateId,
   members, 
   kpis, 
-  inviteLink 
+  inviteLink,
+  canInvite,
 }: { 
   affiliateId: string;
   members: any[]; 
   kpis: any; 
-  inviteLink: string; 
+  inviteLink: string;
+  /** False when an admin hasn't allowed this affiliate to recruit: no invite link, QR or sharing. */
+  canInvite: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -118,6 +121,7 @@ export default function TeamClient({
             Manage your sub-affiliates and track their performance.
           </p>
         </div>
+        {canInvite && (
         <button 
           onClick={() => setInviteModalOpen(true)} 
           className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-dark transition shadow-sm"
@@ -125,6 +129,7 @@ export default function TeamClient({
           <UserPlus className="w-4 h-4" />
           Invite Sub-Affiliate
         </button>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -234,7 +239,8 @@ export default function TeamClient({
         </div>
 
         {/* Invite Widget */}
-        <div className="lg:col-span-1 rounded-2xl border border-line bg-white p-6 shadow-sm flex flex-col justify-between">
+        {canInvite ? (
+<div className="lg:col-span-1 rounded-2xl border border-line bg-white p-6 shadow-sm flex flex-col justify-between">
           <div>
             <h2 className="font-heading text-lg font-bold text-ink">Invite New Affiliate</h2>
             <p className="text-xs text-ink/60 mt-1 mb-6">
@@ -278,6 +284,15 @@ export default function TeamClient({
             </button>
           </div>
         </div>
+        ) : (
+          <div className="lg:col-span-1 rounded-2xl border border-line bg-white p-6 shadow-sm flex flex-col justify-center">
+            <h2 className="font-heading text-lg font-bold text-ink">Team building is off</h2>
+            <p className="mt-2 text-sm text-ink/60">
+              Recruiting new affiliates isn&apos;t enabled for your account. Your existing team and
+              earnings aren&apos;t affected. Contact support if you&apos;d like it turned on.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Table Section */}
@@ -402,7 +417,7 @@ export default function TeamClient({
         )}
       </div>
 
-      {isInviteModalOpen && (
+      {canInvite && isInviteModalOpen && (
         <ShareDialog
           title="Invite Sub-Affiliate"
           defaultMessage={`Join my affiliate team on LumeraMD: ${inviteLink}`}

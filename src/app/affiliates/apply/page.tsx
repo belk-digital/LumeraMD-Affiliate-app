@@ -14,10 +14,10 @@ export default async function ApplyPage({
   const inviter = slug
     ? await prisma.affiliate.findUnique({
         where: { referralSlug: slug },
-        select: { status: true, displayName: true },
+        select: { status: true, displayName: true, canRecruit: true },
       })
     : null;
-  const validInviter = inviter && inviter.status === "approved" ? inviter : null;
+  const validInviter = inviter && inviter.status === "approved" && inviter.canRecruit ? inviter : null;
 
   return (
     <AuthLayout

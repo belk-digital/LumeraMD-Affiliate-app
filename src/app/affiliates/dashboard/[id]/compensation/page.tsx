@@ -4,6 +4,7 @@ import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import { getCompensationOverview } from "@/lib/affiliates/compensation";
 import DashboardShell from "../DashboardShell";
 import { Card, Table, fmtDate } from "../ui";
+import { canSeeTeam } from "@/lib/affiliates/team";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,7 @@ export default async function CompensationPage({
       displayName={affiliate.displayName}
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
+      showTeam={await canSeeTeam(affiliate)}
     >
       <div className="space-y-6 p-4 md:p-6">
         <div className="animate-fade-up">
@@ -229,7 +231,9 @@ export default async function CompensationPage({
               <Card title="Your team by level" delay={200}>
                 {c.levels.length === 0 ? (
                   <p className="text-sm text-ink/60">
-                    No one has joined your team yet. Share your invite link from the Team page.
+                    {affiliate.canRecruit
+                      ? "No one has joined your team yet. Share your invite link from the Team page."
+                      : "No one is on your team. Team building isn't enabled for your account."}
                   </p>
                 ) : (
                   <ul className="space-y-2.5 text-sm">

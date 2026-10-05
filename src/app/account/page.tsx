@@ -1,217 +1,212 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import BrandLogo from "@/components/BrandLogo";
-import StatusPill from "@/components/StatusPill";
-import { prisma } from "@/lib/prisma";
-import { getCustomerSession } from "@/lib/customers/session";
+import { requireCustomer } from "@/lib/customers/requireCustomer";
 import { PLANS, TEST_KIT_PRICE, type PlanKey } from "@/lib/membership/plans";
-import { CopyCode, LogoutButton } from "./AccountClient";
+import { getWalletSummary } from "@/lib/wallet/ledger";
+import { getWalletRules } from "@/lib/wallet/service";
+import { formatPoints } from "@/lib/wallet/rules";
+import Icon from "@/components/Icon";
+import AccountShell from "./AccountShell";
+import { CopyCode } from "./AccountClient";
+import {
+  Badge,
+  ButtonLink,
+  Card,
+  DataTable,
+  MEMBERSHIP_LABEL,
+  MEMBERSHIP_TONE,
+  Page,
+  PointsDelta,
+  StatCard,
+  fmtDate,
+  fmtDateLong,
+  usd,
+} from "./ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My membership · LumeraMD" };
 
 const OPS_EMAIL = process.env.AFFILIATE_OPS_EMAIL ?? "info@lumeramd.com";
-// Set these once the test kit exists in the store (see README notes): the product page, and the
-// code that gives Premium members their $499 price.
-const TEST_KIT_URL = process.env.TEST_KIT_URL;
-const PREMIUM_TEST_KIT_CODE = process.env.PREMIUM_TEST_KIT_CODE;
 
-const usd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
-const date = (d: Date) =>
-  d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-line bg-white p-5 shadow-sm sm:p-6">
-      <h2 className="mb-3 font-heading text-base font-semibold text-ink">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-export default async function AccountPage() {
-  const session = await getCustomerSession();
-  if (!session) redirect("/account/login");
-
-  const customer = await prisma.customerSignup.findUnique({
-    where: { id: session.customerId },
-    include: { payments: { orderBy: { createdAt: "desc" }, take: 12 } },
-  });
-  if (!customer) redirect("/account/login");
-
+export default async function AccountOverviewPage() {
+  const customer = await requireCustomer();
   const plan = PLANS[customer.plan as PlanKey];
   const planName = plan?.name ?? customer.plan;
   const isActive = customer.status === "active";
-  const isPremium = customer.plan === "customer_premium";
-  const kitPrice = plan?.testKitPrice ?? TEST_KIT_PRICE;
-  const included = plan?.consultations ?? 0;
 
-  const statusMessage: Record<string, string> = {
-    pending_payment:
-      "Your membership is waiting for its first payment. We'll email you the moment it's active.",
-    active: customer.currentPeriodEnd
-      ? `Active through ${date(customer.currentPeriodEnd)}.`
-      : "Your membership is active.",
-    past_due: customer.currentPeriodEnd
-      ? `Your payment was due ${date(customer.currentPeriodEnd)}. Your member discount is paused until it's paid.`
-      : "Your payment is overdue. Your member discount is paused until it's paid.",
-    cancelled: customer.cancelledAt
-      ? `Cancelled on ${date(customer.cancelledAt)}.`
-      : "This membership was cancelled.",
+  const [rules, wallet] = await Promise.all([
+    getWalletRules(),
+    getWalletSummary("customer", customer.email, 5),
+  ]);
+  const included = plan?.consultations ?? 0;
+  const left = Math.max(included - customer.consultationsUsed, 0);
+  const kitPrice = plan?.testKitPrice ?? TEST_KIT_PRICE;
+  const walletAvailable = rules.enabled || wallet.accountId !== null;
+
+  const statusLine: Record<string, string> = {
+    pending_payment: "Waiting for your first payment. We'll email you when it's active.",
+    active: customer.currentPeriodEnd ? `Active through ${fmtDateLong(customer.currentPeriodEnd)}.` : "Your membership is active.",
+    past_due: "Your payment is overdue, so your member discount is paused.",
+    cancelled: customer.cancelledAt ? `Cancelled on ${fmtDateLong(customer.cancelledAt)}.` : "This membership was cancelled.",
   };
 
   return (
-    <div className="min-h-screen bg-page-bg">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link href="/" aria-label="LumeraMD home">
-            <BrandLogo className="-my-3 h-20 w-20" />
-          </Link>
-          <LogoutButton />
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-3xl space-y-5 px-4 py-8 sm:px-6">
-        <div className="animate-fade-up">
-          <h1 className="font-heading text-2xl font-semibold text-ink">
-            Hi {customer.firstName}
-          </h1>
-          <p className="mt-1 text-sm text-ink/60">Here&apos;s your LumeraMD membership.</p>
+    <AccountShell name={`${customer.firstName} ${customer.lastName}`.trim()} email={customer.email}>
+      <Page>
+        <div className="animate-fade-up relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-[#2c5a86] p-6 text-white md:p-8">
+          <div className="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full bg-white/10" />
+          <div className="pointer-events-none absolute -bottom-24 right-24 h-48 w-48 rounded-full bg-white/5" />
+          <h1 className="relative font-heading text-3xl font-bold md:text-4xl">Hi {customer.firstName}</h1>
+          <p className="relative mt-1 text-sm text-white/75">Here&apos;s your LumeraMD membership.</p>
         </div>
 
-        <Card title="Your membership">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="font-heading text-xl font-semibold text-ink">{planName}</div>
-              {plan && (
-                <div className="text-sm text-ink/60">
-                  {usd(plan.monthlyPrice)}
-                  <span className="text-ink/40"> / month</span>
-                </div>
-              )}
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            icon="card"
+            label="Membership"
+            badge={<Badge tone={MEMBERSHIP_TONE[customer.status] ?? "slate"}>{MEMBERSHIP_LABEL[customer.status] ?? customer.status}</Badge>}
+            value={planName}
+            sub={
+              <>
+                {plan ? `${usd(plan.monthlyPrice)} / month` : ""}
+                {customer.status === "active" && customer.currentPeriodEnd && (
+                  <span className="block">Active through {fmtDate(customer.currentPeriodEnd)}</span>
+                )}
+              </>
+            }
+          />
+          <StatCard
+            icon="wallet"
+            label="Wallet Balance"
+            value={walletAvailable ? formatPoints(wallet.balanceCents) : "—"}
+            suffix={walletAvailable ? "points" : undefined}
+            sub={walletAvailable ? `Worth $${formatPoints(wallet.balanceCents)} in store credit` : "Coming soon"}
+          />
+          <StatCard
+            icon="calendar"
+            label="Consultations"
+            value={included > 0 ? `${customer.consultationsUsed} of ${included} used` : "—"}
+            sub={included > 0 ? `${left} left` : "Not included in your plan"}
+          />
+          <StatCard
+            icon="flask"
+            label="DNA Test Kit"
+            value={
+              <>
+                {usd(kitPrice)}
+                {kitPrice < TEST_KIT_PRICE && <span className="ml-2 text-sm font-normal text-ink/40 line-through">{usd(TEST_KIT_PRICE)}</span>}
+              </>
+            }
+            sub={plan?.testKitPrice !== undefined ? `${planName} member price` : "Web price"}
+          />
+        </section>
+
+        <section className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+          <Card
+            title="Your membership"
+            icon="card"
+            action={{ href: "/account/membership", label: "Manage" }}
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <div>
+                <span className="font-heading text-3xl font-bold text-ink">{planName}</span>
+                {plan && <span className="ml-2 text-lg text-ink/55">{usd(plan.monthlyPrice)} / month</span>}
+              </div>
+              <Badge tone={MEMBERSHIP_TONE[customer.status] ?? "slate"}>{MEMBERSHIP_LABEL[customer.status] ?? customer.status}</Badge>
             </div>
-            <StatusPill status={customer.status} />
-          </div>
-          <p className="mt-3 text-sm text-ink/70">{statusMessage[customer.status]}</p>
-          {customer.status === "cancelled" && (
-            <Link
-              href="/customers/signup"
-              className="mt-3 inline-block text-sm font-medium text-primary hover:underline"
-            >
-              Rejoin
-            </Link>
-          )}
-          {plan && (
-            <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm text-ink/70">
-              {plan.benefits.map((b) => (
-                <li key={b} className="flex gap-2">
-                  <span className="text-primary">✓</span>
-                  {b}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card title="Member discount">
-          {customer.memberDiscountActive && customer.memberDiscountCode ? (
-            <>
-              <CopyCode code={customer.memberDiscountCode} />
-              <p className="mt-3 text-sm text-ink/60">
-                Enter this code at checkout on lumeramd.com for {plan?.webDiscountPercent}% off.
-              </p>
-            </>
-          ) : (
-            <p className="text-sm text-ink/60">
-              {customer.status === "pending_payment"
-                ? `Your personal ${plan?.webDiscountPercent}% discount code appears here once your membership is active.`
-                : "Your discount code is paused. It comes back as soon as your membership is active."}
-            </p>
-          )}
-        </Card>
-
-        {included > 0 && (
-          <Card title="Consultations">
-            <div className="flex items-center gap-2">
-              {Array.from({ length: included }).map((_, i) => (
-                <span
-                  key={i}
-                  className={`h-3 w-10 rounded-full ${i < customer.consultationsUsed ? "bg-primary" : "bg-primary-light"}`}
-                />
-              ))}
-            </div>
-            <p className="mt-3 text-sm text-ink/70">
-              {customer.consultationsUsed} of {included} used
-              {isActive && customer.consultationsUsed < included
-                ? `, ${included - customer.consultationsUsed} left`
-                : ""}
-              .
-            </p>
-            <p className="mt-1 text-xs text-ink/45">
-              To book a consultation, email{" "}
-              <a href={`mailto:${OPS_EMAIL}`} className="font-medium text-primary hover:underline">
-                {OPS_EMAIL}
-              </a>
-              .
-            </p>
-          </Card>
-        )}
-
-        <Card title="DNA test kit">
-          <div className="flex flex-wrap items-baseline gap-2">
-            <span className="font-heading text-2xl font-semibold text-ink">{usd(kitPrice)}</span>
-            {kitPrice < TEST_KIT_PRICE && (
-              <span className="text-sm text-ink/45 line-through">{usd(TEST_KIT_PRICE)}</span>
+            <p className="mt-1 text-sm text-ink/60">{statusLine[customer.status]}</p>
+            {plan && (
+              <ul className="mt-5 grid gap-2.5 text-sm text-ink/80 sm:grid-cols-2">
+                {plan.benefits.map((b) => (
+                  <li key={b} className="flex items-start gap-2.5">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-white">
+                      <Icon name="check" className="h-3 w-3" strokeWidth={3} />
+                    </span>
+                    {b}
+                  </li>
+                ))}
+              </ul>
             )}
-          </div>
-          <p className="mt-1 text-sm text-ink/60">
-            {isPremium
-              ? "Premium members get the test kit for $499."
-              : `Test kits are ${usd(TEST_KIT_PRICE)}. Premium members pay $499.`}
-          </p>
-          {TEST_KIT_URL && (
-            <a
-              href={TEST_KIT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
-            >
-              Order a test kit
-            </a>
-          )}
-          {isPremium && isActive && PREMIUM_TEST_KIT_CODE && (
-            <div className="mt-3">
-              <p className="mb-1.5 text-xs text-ink/50">Use this code at checkout for your member price:</p>
-              <CopyCode code={PREMIUM_TEST_KIT_CODE} />
-            </div>
-          )}
-        </Card>
-
-        {customer.payments.length > 0 && (
-          <Card title="Payments">
-            <ul className="divide-y divide-line text-sm">
-              {customer.payments.map((p) => (
-                <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <div>
-                    <div className="font-medium text-ink">{usd(p.amount)}</div>
-                    <div className="text-xs text-ink/50">
-                      Covers {date(p.periodStart)} – {date(p.periodEnd)}
-                    </div>
-                  </div>
-                  <div className="text-xs text-ink/50">{date(p.createdAt)}</div>
-                </li>
-              ))}
-            </ul>
           </Card>
-        )}
 
-        <p className="pt-2 text-center text-xs text-ink/45">
-          Questions? Email{" "}
-          <a href={`mailto:${OPS_EMAIL}`} className="font-medium text-primary hover:underline">
-            {OPS_EMAIL}
-          </a>
-        </p>
-      </main>
-    </div>
+          <div className="space-y-5">
+            {customer.memberDiscountActive && customer.memberDiscountCode ? (
+              <Card title="Member discount" icon="dollar" className="border-emerald-200 bg-emerald-50/40">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-sm text-ink/70">{plan?.webDiscountPercent}% off web pricing</span>
+                  <Badge tone="green">Active</Badge>
+                </div>
+                <CopyCode code={customer.memberDiscountCode} />
+              </Card>
+            ) : (
+              <Card title="Member discount" icon="dollar" className="border-rose-200 bg-rose-50/50">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium text-ink">Your code is paused</span>
+                  <Badge tone="red">Paused</Badge>
+                </div>
+                <p className="text-sm text-ink/60">It comes back as soon as your membership is active.</p>
+              </Card>
+            )}
+
+            <Card title="Recent activity" icon="chart" action={{ href: "/account/wallet", label: "View all" }}>
+              <DataTable
+                headers={["Description", "Date", "Points", "Balance"]}
+                align={["left", "left", "right", "right"]}
+                empty="Your wallet activity will appear here."
+                rows={wallet.transactions.map((t) => [
+                  <span key={t.id} className="font-medium text-ink">{t.reason ?? t.type}</span>,
+                  fmtDate(t.createdAt),
+                  <PointsDelta key={`p${t.id}`} cents={t.amountCents} />,
+                  formatPoints(t.balanceAfterCents),
+                ])}
+              />
+            </Card>
+          </div>
+        </section>
+
+        <section className="grid gap-5 md:grid-cols-2">
+          <Card title="Consultations" icon="calendar">
+            {included > 0 ? (
+              <>
+                <div className="font-heading text-2xl font-semibold text-ink">
+                  {customer.consultationsUsed} <span className="text-base font-normal text-ink/50">of {included} used,</span> {left}{" "}
+                  <span className="text-base font-normal text-ink/50">left.</span>
+                </div>
+                <p className="mt-2 text-sm text-ink/60">
+                  To book a consultation, email{" "}
+                  <a href={`mailto:${OPS_EMAIL}`} className="font-medium text-primary hover:underline">{OPS_EMAIL}</a>.
+                </p>
+                <div className="mt-4">
+                  <ButtonLink href={`mailto:${OPS_EMAIL}?subject=Book%20a%20consultation`} variant="outline">
+                    <Icon name="mail" className="h-4 w-4" /> Email to book
+                  </ButtonLink>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-ink/60">
+                Your plan doesn&apos;t include consultations. Plus includes 1 and Premium includes 2.{" "}
+                <a href="/account/membership" className="font-medium text-primary hover:underline">See plans</a>
+              </p>
+            )}
+          </Card>
+
+          <Card title="DNA test kit" icon="flask">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="font-heading text-3xl font-bold text-ink">{usd(kitPrice)}</span>
+              {kitPrice < TEST_KIT_PRICE && <span className="text-base text-ink/40 line-through">{usd(TEST_KIT_PRICE)}</span>}
+            </div>
+            <p className="mt-2 text-sm text-ink/60">
+              {plan?.testKitPrice !== undefined
+                ? `${planName} members get the test kit for ${usd(kitPrice)}.`
+                : `Test kits are ${usd(TEST_KIT_PRICE)}. Plus members pay ${usd(PLANS.customer_plus.testKitPrice ?? TEST_KIT_PRICE)} and Premium ${usd(PLANS.customer_premium.testKitPrice ?? TEST_KIT_PRICE)}.`}
+            </p>
+            <div className="mt-4">
+              <ButtonLink href="/account/test-kit">View test kit</ButtonLink>
+            </div>
+          </Card>
+        </section>
+        {!isActive && customer.status === "pending_payment" && (
+          <p className="text-center text-xs text-ink/45">Questions? Email {OPS_EMAIL}</p>
+        )}
+      </Page>
+    </AccountShell>
   );
 }

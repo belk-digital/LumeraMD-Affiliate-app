@@ -11,6 +11,18 @@
 //       Backdates a member's paid-through date by 10 days. Run the cron job afterwards to see them
 //       turn "past due" (see the manual testing guide).
 //
+// Wallet points (a member is any email with an active membership):
+//   member <email> [basic|plus|premium]   Creates an active test member (no payment needed).
+//   customer-login <email>                Prints a one-time login link for /account (no email needed).
+//   wallet-order <email> <subtotal> [--discount N] [--code WALLET-XXXX] [--total N]
+//       Simulates a paid Shopify order: marks a wallet code used and awards points, exactly like
+//       the real "order paid" webhook. Prints the order id so you can refund it.
+//   wallet-refund <orderId> <amount|full>  Simulates a Shopify refund of that order.
+//   wallet-expire <email>                  Backdates that member's unused codes past their deadline
+//       and runs the expiry job, so the points come back.
+//   wallet-show <email>                    Balance, ledger and codes.
+//   wallet-reset <email>                   Deletes that email's wallet (and its test member).
+//
 // Refuses to run against production, never calls Shopify, and never sends real email.
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
@@ -87,8 +99,79 @@ async function main() {
         data: { currentPeriodEnd: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
       });
       console.log(`${customer.email}: paid-through date moved 10 days into the past. Run the cron job to mark them past due.`);
+    } else if (command === "member") {
+      const [email, planArg = "plus"] = args;
+      if (!email || !email.includes("@")) throw new Error("Usage: member <email> [basic|plus|premium]");
+      const plan = `customer_${planArg}`;
+      if (!["customer_basic", "customer_plus", "customer_premium"].includes(plan)) throw new Error("Plan must be basic, plus or premium.");
+      const existing = await prisma.customerSignup.findFirst({ where: { email: { equals: email, mode: "insensitive" }, status: { not: "cancelled" } } });
+      if (existing) throw new Error(`${email} already has a membership (${existing.status}).`);
+      await prisma.customerSignup.create({
+        data: { firstName: "Test", lastName: "Member", email, plan, status: "active", activatedAt: new Date(), currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+      });
+      console.log(`Created an active ${planArg} member: ${email}`);
+    } else if (command === "customer-login") {
+      const [email] = args;
+      if (!email) throw new Error("Usage: customer-login <email>");
+      const member = await prisma.customerSignup.findFirst({ where: { email: { equals: email, mode: "insensitive" } }, orderBy: { createdAt: "desc" } });
+      if (!member) throw new Error(`No member with email ${email}.`);
+      const token = (await import("node:crypto")).randomBytes(32).toString("hex");
+      await prisma.customerLoginToken.create({ data: { customerId: member.id, token, expiresAt: new Date(Date.now() + 15 * 60 * 1000) } });
+      console.log(`Open this within 15 minutes:\nhttp://localhost:3000/api/customers/auth/callback?token=${token}`);
+    } else if (command === "wallet-order") {
+      const [email, subtotalRaw] = args;
+      const flag = (name: string) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
+      const subtotal = Number(subtotalRaw);
+      if (!email || !Number.isFinite(subtotal) || subtotal <= 0) throw new Error("Usage: wallet-order <email> <subtotal> [--discount N] [--code WALLET-XXXX] [--total N]");
+      const discount = Number(flag("--discount") ?? 0) || 0;
+      const code = flag("--code");
+      const total = Number(flag("--total") ?? subtotal - discount) || subtotal - discount;
+      const { handlePaidOrder } = await import("../src/lib/wallet/service");
+      const { getWalletSummary } = await import("../src/lib/wallet/ledger");
+      const id = `DEVW-${Date.now()}`;
+      const result = await handlePaidOrder({ id, name: `#${id.slice(-6)}`, email, subtotal, discountTotal: discount, total, discountCodes: code ? [code] : [] });
+      const sum = await getWalletSummary("customer", email, 1);
+      console.log(`\nOrder ${id}: subtotal $${subtotal}, discount $${discount}, total $${total}${code ? `, code ${code}` : ""}`);
+      console.log(`  code marked used: ${result.redemptionUsed}`);
+      console.log(`  points earned: ${(result.earnedCents / 100).toFixed(2)} (${result.reason})`);
+      console.log(`  balance now: ${(sum.balanceCents / 100).toFixed(2)}`);
+      console.log(`  to refund it: wallet-refund ${id} <amount|full>`);
+    } else if (command === "wallet-refund") {
+      const [orderId, amountRaw] = args;
+      if (!orderId || !amountRaw) throw new Error("Usage: wallet-refund <orderId> <amount|full>");
+      const refundedAmount = amountRaw === "full" ? null : Number(amountRaw);
+      if (refundedAmount !== null && !(refundedAmount > 0)) throw new Error("Amount must be a positive number, or \"full\".");
+      const { handleRefund } = await import("../src/lib/wallet/service");
+      const r = await handleRefund({ orderId, refundId: `DEVR-${Date.now()}`, refundedAmount });
+      console.log(`Refund on ${orderId} (${amountRaw}): points taken back ${(r.clawedBackCents / 100).toFixed(2)}, points returned ${(r.returnedCents / 100).toFixed(2)}`);
+    } else if (command === "wallet-expire") {
+      const [email] = args;
+      if (!email) throw new Error("Usage: wallet-expire <email>");
+      const account = await prisma.walletAccount.findUnique({ where: { kind_ownerKey: { kind: "customer", ownerKey: email.trim().toLowerCase() } } });
+      if (!account) throw new Error(`No wallet for ${email}.`);
+      const moved = await prisma.walletRedemption.updateMany({ where: { accountId: account.id, status: "pending" }, data: { expiresAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } });
+      const { processWalletRedemptions } = await import("../src/lib/wallet/service");
+      const run = await processWalletRedemptions({ skipShopify: true });
+      console.log(`Backdated ${moved.count} unused code(s). Expiry job: ${run.expired} expired, ${(run.pointsReturnedCents / 100).toFixed(2)} points returned (across all members).`);
+    } else if (command === "wallet-show") {
+      const [email] = args;
+      if (!email) throw new Error("Usage: wallet-show <email>");
+      const { getWalletSummary } = await import("../src/lib/wallet/ledger");
+      const sum = await getWalletSummary("customer", email, 50);
+      console.log(`\nBalance: ${(sum.balanceCents / 100).toFixed(2)} points`);
+      console.log("Ledger (newest first):");
+      for (const t of sum.transactions) console.log(`  ${t.createdAt.toISOString().slice(0, 16)}  ${t.type.padEnd(10)} ${(t.amountCents / 100).toFixed(2).padStart(9)}  -> ${(t.balanceAfterCents / 100).toFixed(2).padStart(8)}  ${t.reason ?? ""}`);
+      console.log("Unused codes:");
+      for (const r of sum.pendingRedemptions) console.log(`  ${r.code}  ${(r.amountCents / 100).toFixed(2)}  expires ${r.expiresAt.toISOString().slice(0, 10)}`);
+      if (sum.pendingRedemptions.length === 0) console.log("  (none)");
+    } else if (command === "wallet-reset") {
+      const [email] = args;
+      if (!email) throw new Error("Usage: wallet-reset <email>");
+      const w = await prisma.walletAccount.deleteMany({ where: { kind: "customer", ownerKey: email.trim().toLowerCase() } });
+      const m = await prisma.customerSignup.deleteMany({ where: { email: { equals: email, mode: "insensitive" } } });
+      console.log(`Deleted ${w.count} wallet(s) and ${m.count} membership record(s) for ${email}.`);
     } else {
-      console.log("Commands: order <referral-slug> <amount> [--approve] | clear-orders | expire <customer-email>");
+      console.log("Commands: order | clear-orders | expire | member | customer-login | wallet-order | wallet-refund | wallet-expire | wallet-show | wallet-reset  (see the top of scripts/devTools.ts)");
     }
   } finally {
     await prisma.$disconnect();

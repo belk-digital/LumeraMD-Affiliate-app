@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import DashboardShell from "../DashboardShell";
 import SettingsForm from "./SettingsForm";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
+import { canSeeTeam } from "@/lib/affiliates/team";
 
 export default async function SettingsPage({
   params,
@@ -32,6 +33,7 @@ export default async function SettingsPage({
       displayName={affiliate.displayName}
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
+      showTeam={await canSeeTeam(affiliate)}
     >
       <div className="px-4 sm:px-6 py-6 space-y-6 max-w-2xl">
         <div>

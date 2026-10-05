@@ -4,6 +4,7 @@ import type { CustomerSignup, MembershipPayment } from "@/generated/prisma/clien
 import { PLANS, type PlanKey } from "@/lib/membership/plans";
 import { createDiscountCode, deleteDiscountCodeByString } from "@/lib/shopify/client";
 import { attributeOrder } from "@/lib/affiliates/commission";
+import { awardMembershipPoints } from "@/lib/wallet/service";
 import {
   notifyMembershipActive,
   notifyMembershipCancelled,
@@ -221,6 +222,13 @@ export async function recordMembershipPayment(
     warnings.push("The payment was recorded, but crediting the referring rep failed.");
   }
 
+  try {
+    await awardMembershipPoints(discount.customer.email, { id: payment.id, amount: payment.amount });
+  } catch (err) {
+    console.error("Membership wallet points failed", err);
+    warnings.push("The payment was recorded, but awarding wallet points failed.");
+  }
+
   return { customer: discount.customer, payment, duplicate: false, firstActivation, warnings };
 }
 
@@ -272,7 +280,11 @@ export async function cancelMembership(customerId: string, opts: LifecycleOption
 }
 
 /** Admin bookkeeping: how many of the plan's included consultations have been used. */
-export async function adjustConsultationsUsed(customerId: string, delta: 1 | -1) {
+export async function adjustConsultationsUsed(
+  customerId: string,
+  delta: 1 | -1,
+  opts: { note?: string; adminEmail?: string } = {},
+) {
   const customer = await getCustomer(customerId);
   const included = PLANS[customer.plan as PlanKey]?.consultations ?? 0;
   if (included === 0) {
@@ -285,9 +297,27 @@ export async function adjustConsultationsUsed(customerId: string, delta: 1 | -1)
       400,
     );
   }
-  return prisma.customerSignup.update({
-    where: { id: customer.id },
-    data: { consultationsUsed: next },
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.customerSignup.update({
+      where: { id: customer.id },
+      data: { consultationsUsed: next },
+    });
+    if (delta === 1) {
+      await tx.memberConsultation.create({
+        data: {
+          customerId: customer.id,
+          notes: opts.note?.trim().slice(0, 500) || null,
+          createdBy: opts.adminEmail,
+        },
+      });
+    } else {
+      const latest = await tx.memberConsultation.findFirst({
+        where: { customerId: customer.id },
+        orderBy: { occurredAt: "desc" },
+      });
+      if (latest) await tx.memberConsultation.delete({ where: { id: latest.id } });
+    }
+    return updated;
   });
 }
 

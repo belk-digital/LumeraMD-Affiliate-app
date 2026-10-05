@@ -15,7 +15,8 @@ import {
   Mail, 
   Link as LinkIcon, 
   Ban,
-  CheckCircle2
+  CheckCircle2,
+  Users
 } from "lucide-react";
 
 type Tab = "identity" | "referral" | "commission" | "stats" | "payout" | "fraud";
@@ -445,3 +446,95 @@ function ZapIcon(props: Record<string, any>) {
 }
 
 
+
+/** Lets an admin allow or block this affiliate from recruiting new team members. */
+export function TeamRecruitingCard({
+  affiliate,
+}: {
+  affiliate: { id: string; canRecruit?: boolean; subAffiliates?: unknown[] };
+}) {
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const allowed = affiliate.canRecruit !== false;
+  const teamSize = Array.isArray(affiliate.subAffiliates) ? affiliate.subAffiliates.length : 0;
+
+  async function handleToggle() {
+    setIsSubmitting(true);
+    setErrorMsg("");
+    try {
+      const res = await fetch(`/api/lumera-ops/affiliates/${affiliate.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ canRecruit: !allowed }),
+      });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(data.error || "Failed to update team recruiting.");
+      }
+    } catch {
+      setErrorMsg("Error updating team recruiting.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-line bg-white shadow-sm flex flex-col">
+      <div className="flex items-center gap-3 p-5 border-b border-line">
+        <div className="bg-primary-light p-2 rounded-lg text-primary">
+          <Users className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="font-heading text-base font-semibold text-ink leading-tight">Team Recruiting</h2>
+          <p className="text-xs text-ink/50">Allow or block this affiliate from building a team.</p>
+        </div>
+      </div>
+
+      {errorMsg && (
+        <div className="mx-5 mt-4 p-3 bg-error/10 border border-error/20 text-error text-xs rounded-xl flex items-center justify-between">
+          <span>{errorMsg}</span>
+          <button onClick={() => setErrorMsg("")} className="text-error hover:text-error/70">
+            &times;
+          </button>
+        </div>
+      )}
+
+      <div className="p-5 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-ink">{allowed ? "Can recruit a team" : "Team recruiting is off"}</p>
+            <p className="text-xs text-ink/50 mt-1">
+              {allowed
+                ? "They have an invite link and a Team page, and new sign-ups through their link join their team."
+                : "Their invite link and Team page are hidden, and sign-ups through their link no longer join their team."}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={allowed}
+            aria-label="Allow this affiliate to recruit a team"
+            onClick={handleToggle}
+            disabled={isSubmitting}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-50 ${
+              allowed ? "bg-primary" : "bg-ink/20"
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                allowed ? "translate-x-5" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+        <p className="text-xs text-ink/50 border-t border-line pt-3">
+          {teamSize} {teamSize === 1 ? "affiliate is" : "affiliates are"} on their team now. Switching this off
+          only stops new recruiting; their current team and earnings stay as they are.
+        </p>
+      </div>
+    </div>
+  );
+}

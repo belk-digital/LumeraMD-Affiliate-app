@@ -24,6 +24,9 @@ export async function GET(
   // form. They must never encode to the same QR image or a team invite would silently hand out
   // the order link instead.
   const type = req.nextUrl.searchParams.get("type") === "invite" ? "invite" : "referral";
+  if (type === "invite" && !affiliate.canRecruit) {
+    return NextResponse.json({ error: "Team building isn't enabled for this account." }, { status: 403 });
+  }
   const targetUrl =
     type === "invite"
       ? `${appBaseUrl}/sales-reps/signup?ref=${affiliate.referralSlug}`

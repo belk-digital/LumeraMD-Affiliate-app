@@ -32,7 +32,7 @@ interface GraphQLResponse<T> {
   errors?: { message: string }[];
 }
 
-async function shopifyGraphQL<T>(query: string, variables: Record<string, unknown>) {
+export async function shopifyGraphQL<T>(query: string, variables: Record<string, unknown>) {
   const res = await fetch(
     `https://${STORE_DOMAIN}/admin/api/${API_VERSION}/graphql.json`,
     {
@@ -59,6 +59,10 @@ export async function createDiscountCode(params: {
   code: string;
   valueType: "percentage" | "fixed_amount";
   value: number;
+  /** Total number of times the code can be used (e.g. 1 for a single-use code). */
+  usageLimit?: number;
+  /** When the code stops working. */
+  endsAt?: Date;
 }) {
   // Local testing: SKIP_SHOPIFY=true in .env.local stops this creating real discount codes in the
   // live store. Everything else behaves as if it had worked.
@@ -101,6 +105,8 @@ export async function createDiscountCode(params: {
       customerSelection: { all: true },
       customerGets,
       appliesOncePerCustomer: false,
+      ...(params.usageLimit ? { usageLimit: params.usageLimit } : {}),
+      ...(params.endsAt ? { endsAt: params.endsAt.toISOString() } : {}),
     },
   });
 

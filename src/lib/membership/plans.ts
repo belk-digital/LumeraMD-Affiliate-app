@@ -9,6 +9,8 @@ export interface MembershipPlan {
   name: string;
   audience: "agent" | "customer";
   monthlyPrice: number; // USD
+  /** Regular price, shown struck through next to a discounted monthlyPrice. */
+  listPrice?: number;
   /** % off web pricing (customers). */
   webDiscountPercent: number;
   benefits: string[];
@@ -27,6 +29,7 @@ export const PLANS: Record<PlanKey, MembershipPlan> = {
     name: "Agent",
     audience: "agent",
     monthlyPrice: 79,
+    listPrice: 179,
     webDiscountPercent: 0,
     benefits: ["Training and education", "Promotions", "Product discounts", "Override commissions"],
     consultations: 0,
@@ -53,9 +56,12 @@ export const PLANS: Record<PlanKey, MembershipPlan> = {
       "Discounts on peptides and supplements",
       "Access to DNA testing",
       "1 consultation",
+      "Test kit for $599",
+      "Access to wellness",
     ],
     consultations: 1,
     overrideEligible: false,
+    testKitPrice: 599,
   },
   customer_premium: {
     key: "customer_premium",
@@ -69,6 +75,8 @@ export const PLANS: Record<PlanKey, MembershipPlan> = {
       "Updated DNA results",
       "2 consultations",
       "Test kit for $499",
+      "Access to wellness",
+      "Discount on wellness",
     ],
     consultations: 2,
     overrideEligible: false,

@@ -49,6 +49,7 @@ export default function AppShell({
   sidebarFooter,
   topBar,
   logoHref = "/",
+  brandLabel = "Affiliate Program",
   children,
 }: {
   mainNav: NavItem[];
@@ -56,6 +57,8 @@ export default function AppShell({
   sidebarFooter: React.ReactNode;
   topBar: React.ReactNode;
   logoHref?: string;
+  /** Small line under the logo (e.g. "Affiliate Program", "Member Account"). */
+  brandLabel?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -65,7 +68,7 @@ export default function AppShell({
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-primary px-3 py-5 md:flex">
         <Link href={logoHref} className="mb-5 block px-3" aria-label="LumeraMD home">
           <BrandLogo variant="white" className="-mx-3 -mt-3 -mb-4 h-28 w-28" />
-          <div className="text-sm text-white/70">Affiliate Program</div>
+          <div className="text-sm text-white/70">{brandLabel}</div>
         </Link>
 
         <nav className="flex-1 space-y-1">

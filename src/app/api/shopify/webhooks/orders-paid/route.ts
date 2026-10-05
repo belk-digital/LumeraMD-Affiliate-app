@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyShopifyWebhook } from "@/lib/shopify/verifyWebhook";
 import { attributeOrder, type ShopifyOrderInput } from "@/lib/affiliates/commission";
+import { handlePaidOrder } from "@/lib/wallet/service";
 
 interface ShopifyOrderPayload {
   id: number;
   name: string;
   subtotal_price: string;
+  /** Price of the line items before discounts (Shopify's subtotal_price is already after them). */
+  total_line_items_price?: string;
   total_discounts: string;
+  total_price?: string;
   discount_codes: { code: string }[];
   email: string | null;
   customer?: { email?: string } | null;
@@ -42,5 +46,26 @@ export async function POST(req: NextRequest) {
     cookieClickId: noteAttrs.affiliate_click_id ?? null,
   });
 
-  return NextResponse.json({ ok: true, conversionId: conversion?.id ?? null });
+  // Wallet points are independent of affiliate attribution, and must never make this webhook fail
+  // (Shopify would retry it and re-run the commission step). Anything that goes wrong is logged.
+  let wallet: { earnedCents: number; redemptionUsed: boolean; reason: string } | null = null;
+  try {
+    const discountTotal = parseFloat(payload.total_discounts) || 0;
+    const grossSubtotal = payload.total_line_items_price
+      ? parseFloat(payload.total_line_items_price)
+      : (parseFloat(payload.subtotal_price) || 0) + discountTotal;
+    wallet = await handlePaidOrder({
+      id: String(payload.id),
+      name: payload.name,
+      email: order.customerEmail,
+      subtotal: grossSubtotal,
+      discountTotal,
+      total: parseFloat(payload.total_price ?? payload.subtotal_price) || 0,
+      discountCodes: order.discountCodes,
+    });
+  } catch (err) {
+    console.error("Wallet handling failed for order", payload.id, err);
+  }
+
+  return NextResponse.json({ ok: true, conversionId: conversion?.id ?? null, wallet });
 }

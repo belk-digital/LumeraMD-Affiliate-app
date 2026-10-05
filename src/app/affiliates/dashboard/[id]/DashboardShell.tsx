@@ -14,6 +14,7 @@ export default function DashboardShell({
   displayName,
   referralLink,
   discountCode = null,
+  showTeam = true,
   children,
 }: {
   affiliateId: string;
@@ -21,6 +22,8 @@ export default function DashboardShell({
   displayName?: string | null;
   referralLink: string;
   discountCode?: string | null;
+  /** False hides the Team page for affiliates an admin hasn't allowed to recruit. */
+  showTeam?: boolean;
   children: React.ReactNode;
 }) {
   const [copied, setCopied] = useState(false);
@@ -32,7 +35,7 @@ export default function DashboardShell({
   }
 
   const base = `/affiliates/dashboard/${affiliateId}`;
-  const mainNav: NavItem[] = [
+  const allMainNav: NavItem[] = [
     { href: base, label: "Overview", icon: "clipboard", isActive: (p) => p === base },
     {
       href: `${base}/conversions`,
@@ -59,6 +62,7 @@ export default function DashboardShell({
       isActive: (p) => p.startsWith(`${base}/team`),
     },
   ];
+  const mainNav = showTeam ? allMainNav : allMainNav.filter((item) => item.label !== "Team");
   const bottomNav: NavItem[] = [
     {
       href: `${base}/settings`,

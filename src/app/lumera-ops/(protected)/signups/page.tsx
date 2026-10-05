@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/admin/requireAdmin";
 import StatusPill from "@/components/StatusPill";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import { PLANS, TEST_KIT_PRICE, type PlanKey } from "@/lib/membership/plans";
 import SalesRepActions from "./SalesRepActions";
 import CustomerActions from "./CustomerActions";
+import { getCustomerBalances } from "@/lib/wallet/ledger";
+import { formatPoints } from "@/lib/wallet/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,7 @@ export default async function SignupsPage() {
     prisma.affiliate.findMany({ select: { id: true, displayName: true, userEmail: true } }),
   ]);
   const referrerName = new Map(referrers.map((r) => [r.id, r.displayName ?? r.userEmail]));
+  const walletBalances = await getCustomerBalances(customers.map((c) => c.email));
 
   return (
     <div className="space-y-8 p-4 md:p-6">
@@ -101,6 +104,11 @@ export default async function SignupsPage() {
                         phone: r.phone,
                         annualGrossSales: r.annualGrossSales,
                         salesType: r.salesType,
+                        plan: r.plan
+                          ? PLANS[r.plan as PlanKey]
+                            ? `${PLANS[r.plan as PlanKey].name} · ${usd(PLANS[r.plan as PlanKey].monthlyPrice)}/mo`
+                            : r.plan
+                          : null,
                         hasResume: !!r.resumeStorageKey,
                         referrer: r.referredByAffiliateId ? (referrerName.get(r.referredByAffiliateId) ?? null) : null,
                         signedUp: date(r.createdAt),
@@ -129,6 +137,7 @@ export default async function SignupsPage() {
                 <th className={th}>Contact</th>
                 <th className={th}>Plan</th>
                 <th className={th}>Test kit</th>
+                <th className={th}>Points</th>
                 <th className={th}>Status</th>
                 <th className={th}>Referred by</th>
                 <th className={th}>Signed up</th>
@@ -138,7 +147,7 @@ export default async function SignupsPage() {
             <tbody className="divide-y divide-line">
               {customers.length === 0 && (
                 <tr>
-                  <td className={td} colSpan={8}>
+                  <td className={td} colSpan={9}>
                     No customer signups yet.
                   </td>
                 </tr>
@@ -157,7 +166,8 @@ export default async function SignupsPage() {
                     <td className={td}>
                       {plan ? `${plan.name} · ${usd(plan.monthlyPrice)}/mo` : c.plan}
                     </td>
-                    <td className={td}>{c.wantsTestKit ? "Yes ($499)" : "—"}</td>
+                    <td className={td}>{c.wantsTestKit ? `Yes (${usd(plan?.testKitPrice ?? TEST_KIT_PRICE)})` : "—"}</td>
+                    <td className={td}>{formatPoints(walletBalances.get(c.email.toLowerCase()) ?? 0)}</td>
                     <td className={td}>
                       <StatusPill status={c.status} />
                       {c.status === "active" && c.currentPeriodEnd && (
@@ -179,6 +189,7 @@ export default async function SignupsPage() {
                           monthlyPrice: plan?.monthlyPrice ?? 0,
                           discountPercent: plan?.webDiscountPercent ?? 0,
                           wantsTestKit: c.wantsTestKit,
+                          testKitPrice: plan?.testKitPrice ?? TEST_KIT_PRICE,
                           status: c.status,
                           referrer: c.referredByAffiliateId
                             ? (referrerName.get(c.referredByAffiliateId) ?? null)

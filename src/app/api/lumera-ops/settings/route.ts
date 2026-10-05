@@ -81,7 +81,31 @@ export async function PATCH(req: NextRequest) {
     return bad("Seller tiers must start at $0 and have increasing sales thresholds and rates from 0 to 100");
   }
 
+  // Wallet points rules (only validated when the form sends them).
+  let wallet: Record<string, unknown> = {};
+  if ("walletEnabled" in b) {
+    const earn = Number(b.walletOrderEarnPercent);
+    const minOrder = Number(b.walletOrderMinSubtotal);
+    const memberEarn = Number(b.walletMembershipEarnPercent);
+    const minRedeem = Number(b.walletMinRedeem);
+    const expiry = Number(b.walletRedeemExpiryDays);
+    if (!Number.isFinite(earn) || earn < 0 || earn > 100) return bad("Points earn rate must be between 0 and 100");
+    if (!Number.isFinite(minOrder) || minOrder < 0 || minOrder > 1_000_000) return bad("Minimum order must be between 0 and 1,000,000");
+    if (!Number.isFinite(memberEarn) || memberEarn < 0 || memberEarn > 100) return bad("Membership points rate must be between 0 and 100");
+    if (!Number.isFinite(minRedeem) || minRedeem < 0.01 || minRedeem > 10_000) return bad("Smallest redemption must be between 0.01 and 10,000 points");
+    if (!Number.isInteger(expiry) || expiry < 1 || expiry > 365) return bad("Code expiry must be a whole number of days between 1 and 365");
+    wallet = {
+      walletEnabled: b.walletEnabled === true,
+      walletOrderEarnPercent: earn,
+      walletOrderMinSubtotal: minOrder,
+      walletMembershipEarnPercent: memberEarn,
+      walletMinRedeem: minRedeem,
+      walletRedeemExpiryDays: expiry,
+    };
+  }
+
   const data = {
+    ...wallet,
     unilevelEnabled: b.unilevelEnabled === true,
     membershipCommissionEnabled: b.membershipCommissionEnabled === true,
     unilevelMinPersonalSales: minPersonal,
@@ -96,6 +120,7 @@ export async function PATCH(req: NextRequest) {
     defaultPendingPeriodDays: pendingDays,
     defaultMinimumPayoutThreshold: minimum,
     defaultParentOverrideRate: override,
+    ...(typeof b.defaultCanRecruit === "boolean" ? { defaultCanRecruit: b.defaultCanRecruit } : {}),
   };
 
   const settings = await prisma.affiliateSettings.upsert({

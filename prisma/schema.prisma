@@ -77,6 +77,10 @@ model Affiliate {
   subAffiliates         Affiliate[]       @relation("AffiliateTeam")
   parentOverrideRate    Float?
 
+  // Whether this affiliate may recruit a team (invite link, QR, new sub-affiliates). Admin-controlled.
+  // Turning it off stops NEW recruiting only; their existing team and earnings are untouched.
+  canRecruit            Boolean           @default(true)
+
   flaggedForReview      Boolean           @default(false)
   fraudScore            Int               @default(0)
   fraudNotes            String?
@@ -239,6 +243,9 @@ model SalesRepSignup {
   phone                 String?
   annualGrossSales      Float?
   salesType             String?
+  // Membership plan chosen on the form (a key from src/lib/membership/plans.ts). Billing isn't
+  // connected yet, so this only records the choice.
+  plan                  String?
 
   resumeStorageKey      String?
   resumeFileName        String?
@@ -289,6 +296,7 @@ model CustomerSignup {
 
   payments              MembershipPayment[]
   loginTokens           CustomerLoginToken[]
+  consultations         MemberConsultation[]
 
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
@@ -373,6 +381,7 @@ model AffiliateSettings {
   defaultPendingPeriodDays      Int      @default(30)
   defaultMinimumPayoutThreshold Float    @default(50)
   defaultParentOverrideRate     Float    @default(3)
+  defaultCanRecruit             Boolean  @default(true)
 
   // Unilevel compensation plan (from the client's spreadsheet). Off by default: when off, the
   // legacy flat-rate + single-parent override applies. Values the client hasn't specified
@@ -381,6 +390,15 @@ model AffiliateSettings {
   // Whether membership payments earn the referring rep commission, like a product sale. Off until
   // the client confirms membership fees count as sales.
   membershipCommissionEnabled   Boolean  @default(false)
+
+  // Wallet points (1 point = $1 of store credit). Off until an admin turns it on. Earning rules mirror
+  // the 99 Purity Peptides points system: a percent of the order after discounts, with a minimum.
+  walletEnabled                 Boolean  @default(false)
+  walletOrderEarnPercent        Float    @default(5)
+  walletOrderMinSubtotal        Float    @default(300)
+  walletMembershipEarnPercent   Float    @default(0)
+  walletMinRedeem               Float    @default(5)
+  walletRedeemExpiryDays        Int      @default(14)
 
   unilevelEnabled               Boolean  @default(false)
   unilevelMinPersonalSales      Float    @default(0)
@@ -392,4 +410,101 @@ model AffiliateSettings {
   updatedAt                     DateTime @updatedAt
 
   @@map("affiliate_settings")
+}
+
+enum WalletKind {
+  customer
+  affiliate
+}
+
+enum WalletTxType {
+  earn
+  redeem
+  refund
+  clawback
+  adjustment
+}
+
+enum WalletRedemptionStatus {
+  pending
+  used
+  expired
+}
+
+// A points balance. ownerKey is the lowercased email for customers (so it survives cancelling and
+// rejoining) or the affiliate id for affiliates. balanceCents is a cache of the ledger: 1 point is
+// 100 "cents" so points carry cents like money. It is only ever changed together with a ledger row.
+model WalletAccount {
+  id           String              @id @default(cuid())
+  kind         WalletKind
+  ownerKey     String
+  balanceCents Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  transactions WalletTransaction[]
+  redemptions  WalletRedemption[]
+
+  @@unique([kind, ownerKey])
+  @@map("wallet_accounts")
+}
+
+// Append-only ledger. amountCents is signed (credit +, debit -). idempotencyKey makes a retried
+// webhook or double click a no-op instead of a second credit.
+model WalletTransaction {
+  id                String        @id @default(cuid())
+  accountId         String
+  account           WalletAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type              WalletTxType
+  amountCents       Int
+  balanceAfterCents Int
+  reason            String?
+  sourceType        String?
+  sourceId          String?
+  idempotencyKey    String?       @unique
+  meta              Json?
+  createdBy         String?
+  createdAt         DateTime      @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([sourceType, sourceId])
+  @@map("wallet_transactions")
+}
+
+// Points a member turned into a single-use Shopify discount code. The points are taken out of the
+// balance up front; if the code is not used before it expires they go back.
+model WalletRedemption {
+  id          String                 @id @default(cuid())
+  accountId   String
+  account     WalletAccount          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amountCents Int
+  code        String                 @unique
+  status      WalletRedemptionStatus @default(pending)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedOrderId String?
+  // Total of the order the code was used on, so a partial refund can return a matching share.
+  usedOrderTotalCents Int?
+  createdAt   DateTime               @default(now())
+
+  @@index([accountId, status])
+  @@map("wallet_redemptions")
+}
+
+// One row per telehealth consultation a member has used, created when an admin logs one. The count
+// on CustomerSignup (consultationsUsed) stays the number that limits the plan; these rows are the
+// history the member sees.
+model MemberConsultation {
+  id         String         @id @default(cuid())
+  customerId String
+  customer   CustomerSignup @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  occurredAt DateTime       @default(now())
+  title      String         @default("Telehealth consultation")
+  status     String         @default("completed")
+  notes      String?
+  createdBy  String?
+  createdAt  DateTime       @default(now())
+
+  @@index([customerId, occurredAt])
+  @@map("member_consultations")
 }

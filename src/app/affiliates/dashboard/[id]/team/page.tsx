@@ -4,6 +4,7 @@ import { getTeamOverview } from "@/lib/affiliates/dashboardData";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import DashboardShell from "../DashboardShell";
 import TeamClient from "./TeamClient";
+import { canSeeTeam } from "@/lib/affiliates/team";
 
 
 export default async function TeamPage({
@@ -30,6 +31,7 @@ export default async function TeamPage({
       displayName={affiliate.displayName}
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
+      showTeam={await canSeeTeam(affiliate)}
     >
       <div className="p-4 md:p-6 lg:p-8">
         <TeamClient 
@@ -37,6 +39,7 @@ export default async function TeamPage({
           members={members}
           kpis={kpis}
           inviteLink={inviteLink}
+          canInvite={affiliate.canRecruit}
         />
       </div>
     </DashboardShell>

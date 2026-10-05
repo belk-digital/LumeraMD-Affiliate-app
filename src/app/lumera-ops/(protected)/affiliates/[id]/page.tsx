@@ -6,7 +6,8 @@ import {
   TabsNav, 
   IdentityInfoCard, 
   AccountStatusCard, 
-  QuickActionsCard, 
+  QuickActionsCard,
+  TeamRecruitingCard,
 } from "./AdminAffiliateTabs";
 import { MousePointerClick, BarChart as BarChartIcon, DollarSign } from "lucide-react";
 
@@ -118,6 +119,7 @@ export default async function AdminAffiliateDetailPage({
           </div>
           <div className="md:col-span-2 space-y-6">
             <AccountStatusCard affiliate={affiliate} />
+            <TeamRecruitingCard affiliate={affiliate} />
             <QuickActionsCard affiliate={affiliate} />
           </div>
         </div>

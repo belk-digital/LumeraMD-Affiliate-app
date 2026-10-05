@@ -6,7 +6,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { error } = await requireAdminOrResponse();
+  const { session, error } = await requireAdminOrResponse();
   if (error) return error;
 
   const { id } = await params;
@@ -16,7 +16,10 @@ export async function POST(
   }
 
   try {
-    const customer = await adjustConsultationsUsed(id, body.delta);
+    const customer = await adjustConsultationsUsed(id, body.delta, {
+      note: typeof body.note === "string" ? body.note : undefined,
+      adminEmail: session.email,
+    });
     return NextResponse.json({ ok: true, consultationsUsed: customer.consultationsUsed });
   } catch (err) {
     if (err instanceof MembershipError) {

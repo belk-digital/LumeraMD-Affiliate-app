@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { EMAIL_RE, resolveReferrerId } from "@/lib/signup";
-import { isCustomerPlanKey } from "@/lib/membership/plans";
+import { PLANS, isCustomerPlanKey } from "@/lib/membership/plans";
 import { notifyMembershipRequested } from "@/lib/email/membership";
 
 // Records a customer's chosen membership as pending_payment. Recurring billing is what activates
@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // The $499 test kit rate is a Premium perk; anyone else buys it at web price.
-  const wantsTestKit = body.wantsTestKit === true && plan === "customer_premium";
+  // The discounted test kit is a Plus ($599) and Premium ($499) perk; Basic buys it at web price.
+  const wantsTestKit = body.wantsTestKit === true && PLANS[plan].testKitPrice !== undefined;
 
   const referredByAffiliateId = await resolveReferrerId(req, referralSlug, email);
 

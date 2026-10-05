@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import DashboardShell from "../DashboardShell";
 import { AffiliateConversionsClient } from "./AffiliateConversionsClient";
+import { canSeeTeam } from "@/lib/affiliates/team";
 
 export const dynamic = "force-dynamic";
 
@@ -167,6 +168,7 @@ export default async function ConversionsPage({
       displayName={affiliate.displayName}
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
+      showTeam={await canSeeTeam(affiliate)}
     >
       <AffiliateConversionsClient 
         affiliateId={affiliate.id}

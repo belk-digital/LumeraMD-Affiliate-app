@@ -31,6 +31,13 @@ export async function PATCH(
     updateData.status = b.status;
   }
   
+  if ("canRecruit" in b) {
+    if (typeof b.canRecruit !== "boolean") {
+      return NextResponse.json({ error: "canRecruit must be true or false" }, { status: 400 });
+    }
+    updateData.canRecruit = b.canRecruit;
+  }
+
   if ("suspendReason" in b) {
     updateData.suspendReason = b.suspendReason || null;
   }

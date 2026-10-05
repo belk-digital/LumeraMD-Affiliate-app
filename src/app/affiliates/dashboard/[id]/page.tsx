@@ -10,6 +10,7 @@ import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import DashboardShell from "./DashboardShell";
 import CopyableRow from "./CopyableRow";
 import { Card } from "./ui";
+import { canSeeTeam } from "@/lib/affiliates/team";
 
 const TABS: ChartTab[] = [
   { key: "clicks", label: "Clicks", kind: "count", one: "click", other: "clicks" },
@@ -55,6 +56,7 @@ export default async function DashboardPage({
       displayName={affiliate.displayName}
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
+      showTeam={await canSeeTeam(affiliate)}
     >
       <div className="space-y-6 p-4 md:p-6">
         <div className="animate-fade-up">

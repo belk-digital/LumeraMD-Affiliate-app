@@ -15,6 +15,8 @@ export interface SalesRepRow {
   phone: string | null;
   annualGrossSales: number | null;
   salesType: string | null;
+  /** e.g. "Agent · $79/mo", or null for signups from before plans were offered. */
+  plan: string | null;
   hasResume: boolean;
   referrer: string | null;
   signedUp: string;
@@ -232,6 +234,7 @@ function ReviewModal({
               {rep.annualGrossSales != null ? usd(rep.annualGrossSales) : "—"}
             </Detail>
             <Detail label="Type of sales">{rep.salesType || "—"}</Detail>
+            <Detail label="Plan">{rep.plan || "—"}</Detail>
             <Detail label="Referred by">{rep.referrer || "—"}</Detail>
             <Detail label="Status">
               <StatusPill status={rep.status} />

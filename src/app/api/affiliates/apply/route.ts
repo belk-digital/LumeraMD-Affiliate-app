@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
   const referredByAffiliateId =
     referrer &&
     referrer.status === "approved" &&
+    referrer.canRecruit &&
     referrer.userEmail.toLowerCase() !== cleanEmail.toLowerCase()
       ? referrer.id
       : null;

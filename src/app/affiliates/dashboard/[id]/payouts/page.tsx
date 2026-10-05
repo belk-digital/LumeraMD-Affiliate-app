@@ -4,6 +4,7 @@ import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import { pctChange } from "@/lib/metrics";
 import DashboardShell from "../DashboardShell";
 import { PayoutsClient } from "./PayoutsClient";
+import { canSeeTeam } from "@/lib/affiliates/team";
 
 export default async function PayoutsPage({
   params,
@@ -70,6 +71,7 @@ export default async function PayoutsPage({
       displayName={affiliate.displayName}
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
+      showTeam={await canSeeTeam(affiliate)}
     >
       <PayoutsClient 
         affiliate={affiliate}

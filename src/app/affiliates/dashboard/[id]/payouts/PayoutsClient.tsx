@@ -289,7 +289,7 @@ export function PayoutsClient({
           </div>
         </div>
         <Link 
-          href={`../team`}
+          href={affiliate.canRecruit === false ? `..` : `../team`}
           className="shrink-0 flex items-center gap-2 px-6 py-3 bg-primary text-white hover:bg-primary-dark text-sm font-bold rounded-xl transition shadow-sm w-full md:w-auto justify-center"
         >
           Share Your Link
