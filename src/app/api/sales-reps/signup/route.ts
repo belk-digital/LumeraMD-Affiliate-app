@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/storage";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { EMAIL_RE, resolveReferrerId } from "@/lib/signup";
+import { notifyAdminNewSalesRep } from "@/lib/email/admin";
+import { PLANS, type PlanKey } from "@/lib/membership/plans";
 
 const MAX_RESUME_BYTES = 8 * 1024 * 1024; // 8MB
 const ALLOWED_RESUME_TYPES: Record<string, string> = {
@@ -107,6 +109,25 @@ export async function POST(req: NextRequest) {
       referredByAffiliateId,
     },
   });
+
+  // Tell the admins an application is waiting. Never fails the signup if the email does.
+  try {
+    const referrer = referredByAffiliateId
+      ? await prisma.affiliate.findUnique({
+          where: { id: referredByAffiliateId },
+          select: { displayName: true, userEmail: true },
+        })
+      : null;
+    await notifyAdminNewSalesRep({
+      firstName,
+      lastName,
+      email,
+      planName: PLANS[plan as PlanKey]?.name ?? plan,
+      referrer: referrer ? (referrer.displayName ?? referrer.userEmail) : null,
+    });
+  } catch (err) {
+    console.error("Admin signup email failed", err);
+  }
 
   return NextResponse.json({ ok: true, signup: { id: signup.id } });
 }

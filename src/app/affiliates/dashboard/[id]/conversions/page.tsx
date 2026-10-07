@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import DashboardShell from "../DashboardShell";
+import { hasMembership } from "@/lib/customers/crossLinks";
 import { AffiliateConversionsClient } from "./AffiliateConversionsClient";
 import { canSeeTeam } from "@/lib/affiliates/team";
 
@@ -169,6 +170,7 @@ export default async function ConversionsPage({
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
       showTeam={await canSeeTeam(affiliate)}
+      hasMembership={await hasMembership(affiliate.userEmail)}
     >
       <AffiliateConversionsClient 
         affiliateId={affiliate.id}

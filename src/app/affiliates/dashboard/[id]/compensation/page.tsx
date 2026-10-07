@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import { getCompensationOverview } from "@/lib/affiliates/compensation";
 import DashboardShell from "../DashboardShell";
+import { hasMembership } from "@/lib/customers/crossLinks";
 import { Card, Table, fmtDate } from "../ui";
 import { canSeeTeam } from "@/lib/affiliates/team";
 
@@ -66,6 +67,7 @@ export default async function CompensationPage({
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
       showTeam={await canSeeTeam(affiliate)}
+      hasMembership={await hasMembership(affiliate.userEmail)}
     >
       <div className="space-y-6 p-4 md:p-6">
         <div className="animate-fade-up">
@@ -163,6 +165,41 @@ export default async function CompensationPage({
               </p>
             </Card>
 
+            {c.activity && (
+              <Card title="Activity cycle" delay={100}>
+                <div className="mb-4 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      c.activity.active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {c.activity.active ? "Active" : "Not active yet"}
+                  </span>
+                  <span className="text-sm text-ink/60">
+                    {c.activity.daysLeft} day{c.activity.daysLeft === 1 ? "" : "s"} left in this {c.activity.cycleDays}-day cycle
+                  </span>
+                </div>
+                <ul className="space-y-4">
+                  <Check
+                    ok={c.activity.recruits >= c.activity.requiredRecruits}
+                    title={`Recruit ${c.activity.requiredRecruits} affiliates this cycle`}
+                    detail={`${c.activity.recruits} of ${c.activity.requiredRecruits} so far.`}
+                  />
+                  {c.activity.minSales > 0 && (
+                    <Check
+                      ok={c.activity.sales >= c.activity.minSales}
+                      title={`Or reach ${usd(c.activity.minSales)} in your own sales`}
+                      detail={`${usd(c.activity.sales)} so far this cycle.`}
+                    />
+                  )}
+                </ul>
+                <p className="mt-4 text-xs text-ink/45">
+                  Meet either one before the cycle ends and you stay active with a fresh cycle. Miss it and your
+                  account is suspended. We email you 14 and 3 days before.
+                </p>
+              </Card>
+            )}
+
             <Card title="Override qualification" delay={120}>
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span
@@ -170,14 +207,29 @@ export default async function CompensationPage({
                     q.qualified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                   }`}
                 >
-                  {q.qualified ? "Qualified this month" : "Not qualified yet this month"}
+                  {q.qualified ? (c.activity ? "Qualified" : "Qualified this month") : c.activity ? "Not qualified yet" : "Not qualified yet this month"}
                 </span>
                 <span className="text-sm text-ink/60">
                   {q.qualified
                     ? "You're earning overrides on your team's sales."
-                    : "Until you meet both requirements, your override share on your team's sales goes to the next qualified person above you."}
+                    : "Until you meet the requirements, your override share on your team's sales goes to the next qualified person above you."}
                 </span>
               </div>
+              {c.activity ? (
+                <ul className="space-y-4">
+                  <Check
+                    ok={c.activity.active}
+                    title="Be active"
+                    detail={c.activity.active ? "You're active this cycle." : "Meet the activity requirement above."}
+                  />
+                  <Check
+                    ok={q.meetsRecruits}
+                    title={`Have ${q.requiredRecruits} active recruits`}
+                    detail={`${q.activeRecruits} of ${q.requiredRecruits} so far (a recruit counts once they've met the requirement themselves).`}
+                  />
+                </ul>
+              ) : (
+              <>
               <ul className="space-y-4">
                 <Check
                   ok={q.meetsRecruits}
@@ -203,6 +255,8 @@ export default async function CompensationPage({
                 />
               </ul>
               <p className="mt-4 text-xs text-ink/45">Both are checked every month.</p>
+              </>
+              )}
             </Card>
 
             <Card title={`Override earnings, ${c.monthLabel}`} delay={160}>

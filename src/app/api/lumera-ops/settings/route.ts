@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrResponse } from "@/lib/admin/requireAdmin";
+import { activityRulesFromSettings, startCyclesForExisting } from "@/lib/affiliates/activity";
 
 const COMMISSION_TYPES = ["percent", "fixed"];
 const COMMISSION_BASES = ["subtotal_before_coupon", "subtotal_after_coupon"];
@@ -104,8 +105,31 @@ export async function PATCH(req: NextRequest) {
     };
   }
 
+  // 90-day activity cycle (only validated when the form sends it).
+  let activity: Record<string, unknown> = {};
+  if ("activityEnabled" in b) {
+    const days = Number(b.activityCycleDays);
+    const recruits = Number(b.activityRequiredRecruits);
+    const sales = Number(b.activityMinSales);
+    if (!Number.isInteger(days) || days < 7 || days > 365) return bad("Cycle length must be a whole number of days between 7 and 365");
+    if (!Number.isInteger(recruits) || recruits < 0 || recruits > 100) return bad("Recruits needed must be a whole number between 0 and 100");
+    if (!Number.isFinite(sales) || sales < 0 || sales > 10_000_000) return bad("Sales target must be between 0 and 10,000,000");
+    if (recruits === 0 && sales === 0 && b.activityEnabled === true) {
+      return bad("Set recruits needed above 0 or a sales target above 0, otherwise everyone is always active");
+    }
+    activity = {
+      activityEnabled: b.activityEnabled === true,
+      activityCycleDays: days,
+      activityRequiredRecruits: recruits,
+      activityMinSales: sales,
+    };
+  }
+
+  const previous = await prisma.affiliateSettings.findUnique({ where: { id: "global" } });
+
   const data = {
     ...wallet,
+    ...activity,
     unilevelEnabled: b.unilevelEnabled === true,
     membershipCommissionEnabled: b.membershipCommissionEnabled === true,
     unilevelMinPersonalSales: minPersonal,
@@ -129,5 +153,12 @@ export async function PATCH(req: NextRequest) {
     create: { id: "global", ...data },
   });
 
-  return NextResponse.json({ ok: true, settings });
+  // Turning the program on starts a grandfathered cycle for everyone already approved, so nobody is
+  // suspended on day one.
+  let startedCycles = 0;
+  if (settings.activityEnabled && !previous?.activityEnabled) {
+    startedCycles = await startCyclesForExisting(activityRulesFromSettings(settings));
+  }
+
+  return NextResponse.json({ ok: true, settings, startedCycles });
 }

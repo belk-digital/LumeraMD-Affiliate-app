@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { AffiliateSettings, Affiliate } from "@/generated/prisma/client";
+import { activeRecruitsNow, activityRulesFromSettings, isCurrentlyActive, type ActivityRules } from "@/lib/affiliates/activity";
 import {
   DEFAULT_PLAN,
   calculateCommission,
@@ -79,8 +80,22 @@ export async function activeRecruitCount(affiliateId: string, plan: CompPlan, wi
   return sales.filter((s) => (s._sum.eligibleSubtotal ?? 0) >= plan.activeRecruitMinSales).length;
 }
 
-export async function isAffiliateQualified(affiliate: Affiliate, plan: CompPlan, window: Window) {
+/**
+ * Whether an upline can be paid overrides. Normally the monthly rule (own sales and active recruits
+ * that month). With the 90-day activity cycle on, it is: currently active, with enough recruits
+ * who are currently active; no monthly sales requirement.
+ */
+export async function isAffiliateQualified(
+  affiliate: Affiliate,
+  plan: CompPlan,
+  window: Window,
+  activity: ActivityRules | null = null,
+) {
   if (affiliate.status !== "approved") return false;
+  if (activity?.enabled) {
+    if (!(await isCurrentlyActive(affiliate, activity))) return false;
+    return (await activeRecruitsNow(affiliate.id, activity)) >= plan.requiredActiveRecruits;
+  }
   const [sales, recruits] = await Promise.all([
     personalSales(affiliate.id, window),
     activeRecruitCount(affiliate.id, plan, window),
@@ -109,6 +124,7 @@ export async function computeUnilevel(params: {
   const { seller, eligibleSubtotal, settings } = params;
   const plan = planFromSettings(settings);
   const window = monthWindow(params.at ?? new Date());
+  const activity = activityRulesFromSettings(settings);
 
   const monthlySales = (await personalSales(seller.id, window)) + eligibleSubtotal;
 
@@ -125,7 +141,7 @@ export async function computeUnilevel(params: {
     seen.add(nextId);
     const upline = await prisma.affiliate.findUnique({ where: { id: nextId } });
     if (!upline) break;
-    const qualified = await isAffiliateQualified(upline, plan, window);
+    const qualified = await isAffiliateQualified(upline, plan, window, activity);
     chain.push({ id: upline.id, name: upline.displayName ?? upline.userEmail, qualified });
     if (qualified) qualifiedCount += 1;
     nextId = upline.parentAffiliateId;

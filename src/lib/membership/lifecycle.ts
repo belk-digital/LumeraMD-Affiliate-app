@@ -197,6 +197,7 @@ export async function recordMembershipPayment(
         activatedAt: customer.activatedAt ?? now,
         cancelledAt: null,
         currentPeriodEnd: periodEnd,
+        complimentary: false,
       },
     });
     return { payment, updated };
@@ -235,6 +236,8 @@ export async function recordMembershipPayment(
 /** If enabled in settings, a membership payment earns the referring rep commission like a sale. */
 async function creditReferrer(customer: CustomerSignup, payment: MembershipPayment) {
   if (!customer.referredByAffiliateId) return;
+  // An agent's own $79 is a fee, not a sale: it never earns anyone commission or overrides.
+  if (customer.plan === "agent") return;
   const settings = await prisma.affiliateSettings.upsert({
     where: { id: "global" },
     update: {},
@@ -257,6 +260,51 @@ async function creditReferrer(customer: CustomerSignup, payment: MembershipPayme
   });
 }
 
+/**
+ * Admin grants access without a payment (a friend, a partner). Activates the membership with no end
+ * date, turns on the member discount and welcomes the member. It records no payment, so it earns no
+ * wallet points and pays no rep commission, and the daily lapse check skips it. Cancelling it, or
+ * recording a real payment, ends the complimentary status.
+ */
+export async function grantComplimentary(
+  customerId: string,
+  params: { note: string; adminEmail?: string },
+  opts: LifecycleOptions = {},
+) {
+  const note = params.note.trim().slice(0, 500);
+  if (!note) throw new MembershipError("Add a note saying who this is and why, so it is on record.", 400);
+  const customer = await getCustomer(customerId);
+  if (customer.complimentary && customer.status === "active") {
+    throw new MembershipError("This membership is already complimentary.", 409);
+  }
+  const firstActivation = customer.activatedAt === null;
+  const updated = await prisma.customerSignup.update({
+    where: { id: customer.id },
+    data: {
+      status: "active",
+      activatedAt: customer.activatedAt ?? new Date(),
+      cancelledAt: null,
+      currentPeriodEnd: null,
+      complimentary: true,
+      complimentaryNote: note,
+      complimentaryBy: params.adminEmail ?? null,
+    },
+  });
+
+  const warnings: string[] = [];
+  const discount = await ensureMemberDiscount(updated, opts);
+  if (discount.error) warnings.push(discount.error);
+  try {
+    await notifyMembershipActive(discount.customer, {
+      discountCode: discount.customer.memberDiscountActive ? discount.customer.memberDiscountCode : null,
+      firstActivation,
+    });
+  } catch (err) {
+    console.error("Membership email failed", err);
+  }
+  return { customer: discount.customer, warnings };
+}
+
 export async function cancelMembership(customerId: string, opts: LifecycleOptions = {}) {
   const customer = await getCustomer(customerId);
   if (customer.status === "cancelled") {
@@ -264,7 +312,7 @@ export async function cancelMembership(customerId: string, opts: LifecycleOption
   }
   const cancelled = await prisma.customerSignup.update({
     where: { id: customer.id },
-    data: { status: "cancelled", cancelledAt: new Date() },
+    data: { status: "cancelled", cancelledAt: new Date(), complimentary: false },
   });
   const discount = await removeMemberDiscount(cancelled, opts);
 
@@ -330,13 +378,13 @@ export async function processMembershipLifecycle(opts: LifecycleOptions = {}, no
   const cutoff = new Date(now.getTime() - GRACE_DAYS * 24 * 60 * 60 * 1000);
 
   const lapsed = await prisma.customerSignup.findMany({
-    where: { status: "active", currentPeriodEnd: { lt: cutoff } },
+    where: { status: "active", complimentary: false, currentPeriodEnd: { lt: cutoff } },
   });
   let markedPastDue = 0;
   for (const customer of lapsed) {
     // Re-check the status in the same statement so a payment that just landed isn't overwritten.
     const res = await prisma.customerSignup.updateMany({
-      where: { id: customer.id, status: "active", currentPeriodEnd: { lt: cutoff } },
+      where: { id: customer.id, status: "active", complimentary: false, currentPeriodEnd: { lt: cutoff } },
       data: { status: "past_due" },
     });
     if (res.count === 0) continue;

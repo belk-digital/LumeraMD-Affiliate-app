@@ -3,6 +3,7 @@ import { buildNotificationEmail } from "@/lib/email/templates/notification";
 import { buildMagicLinkEmail } from "@/lib/email/templates/magic-link";
 import type { CustomerSignup } from "@/generated/prisma/client";
 import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import { notifyAdminNewMember } from "@/lib/email/admin";
 
 const OPS_EMAIL = process.env.AFFILIATE_OPS_EMAIL ?? "info@lumeramd.com";
 const APP_BASE_URL = process.env.APP_BASE_URL ?? "";
@@ -26,11 +27,12 @@ export async function notifyMembershipRequested(customer: CustomerSignup) {
       logoWhiteUrl: LOGO_WHITE_URL,
     }),
   );
-  await sendEmail(
-    OPS_EMAIL,
-    `New membership request: ${customer.email}`,
-    `<p>${customer.firstName} ${customer.lastName} (${customer.email}) requested the ${planName(customer)} plan.</p>`,
-  );
+  await notifyAdminNewMember({
+    firstName: customer.firstName,
+    lastName: customer.lastName,
+    email: customer.email,
+    planName: planName(customer),
+  });
 }
 
 /** Sent when a payment makes the membership active. `discountCode` is shown only if one exists. */

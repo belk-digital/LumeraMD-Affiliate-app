@@ -24,7 +24,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     body: JSON.stringify({
       from: "LumeraMD Affiliates <notifications@lumeramd.biz>",
       to,
-      cc: MONITOR_CC,
+      // No copy when the recipient is already the monitor address.
+      ...(to.toLowerCase() === MONITOR_CC ? {} : { cc: MONITOR_CC }),
       subject,
       html,
     }),

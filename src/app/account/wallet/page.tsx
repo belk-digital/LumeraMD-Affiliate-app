@@ -3,6 +3,7 @@ import { getWalletSummary } from "@/lib/wallet/ledger";
 import { getWalletRules } from "@/lib/wallet/service";
 import { formatPoints } from "@/lib/wallet/rules";
 import AccountShell from "../AccountShell";
+import { affiliateIdFor } from "@/lib/customers/crossLinks";
 import WalletCard from "../WalletCard";
 import { Card, DataTable, Page, PageHeader, PointsDelta, fmtDate } from "../ui";
 
@@ -26,7 +27,11 @@ export default async function WalletPage() {
         : null;
 
   return (
-    <AccountShell name={`${customer.firstName} ${customer.lastName}`.trim()} email={customer.email}>
+    <AccountShell
+      name={`${customer.firstName} ${customer.lastName}`.trim()}
+      email={customer.email}
+      affiliateId={await affiliateIdFor(customer.email)}
+    >
       <Page>
         <PageHeader title="Wallet" subtitle="Your points and rewards." />
 

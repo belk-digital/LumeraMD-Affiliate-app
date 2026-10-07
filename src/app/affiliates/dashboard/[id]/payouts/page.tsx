@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import { pctChange } from "@/lib/metrics";
 import DashboardShell from "../DashboardShell";
+import { hasMembership } from "@/lib/customers/crossLinks";
 import { PayoutsClient } from "./PayoutsClient";
 import { canSeeTeam } from "@/lib/affiliates/team";
 
@@ -72,6 +73,7 @@ export default async function PayoutsPage({
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
       showTeam={await canSeeTeam(affiliate)}
+      hasMembership={await hasMembership(affiliate.userEmail)}
     >
       <PayoutsClient 
         affiliate={affiliate}

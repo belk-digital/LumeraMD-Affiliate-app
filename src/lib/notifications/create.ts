@@ -10,7 +10,10 @@ export type NotificationType =
   | "payout_requested"
   | "payout_approved"
   | "payout_paid"
-  | "payout_rejected";
+  | "payout_rejected"
+  | "activity_warning"
+  | "activity_passed"
+  | "activity_suspended";
 
 export async function createNotification(
   affiliateId: string,

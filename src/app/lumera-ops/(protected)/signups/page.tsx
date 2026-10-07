@@ -170,6 +170,9 @@ export default async function SignupsPage() {
                     <td className={td}>{formatPoints(walletBalances.get(c.email.toLowerCase()) ?? 0)}</td>
                     <td className={td}>
                       <StatusPill status={c.status} />
+                      {c.complimentary && c.status === "active" && (
+                        <div className="mt-1 text-xs text-ink/50">Complimentary</div>
+                      )}
                       {c.status === "active" && c.currentPeriodEnd && (
                         <div className="mt-1 text-xs text-ink/50">through {date(c.currentPeriodEnd)}</div>
                       )}
@@ -200,6 +203,9 @@ export default async function SignupsPage() {
                           memberDiscountActive: c.memberDiscountActive,
                           consultationsUsed: c.consultationsUsed,
                           consultationsIncluded: plan?.consultations ?? 0,
+                          complimentary: c.complimentary,
+                          complimentaryNote: c.complimentaryNote,
+                          complimentaryBy: c.complimentaryBy,
                           payments: c.payments.map((p) => ({
                             id: p.id,
                             amount: p.amount,

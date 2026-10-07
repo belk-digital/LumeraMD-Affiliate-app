@@ -12,7 +12,7 @@
 //       turn "past due" (see the manual testing guide).
 //
 // Wallet points (a member is any email with an active membership):
-//   member <email> [basic|plus|premium]   Creates an active test member (no payment needed).
+//   member <email> [basic|plus|premium|agent]   Creates an active test member (no payment needed).
 //   customer-login <email>                Prints a one-time login link for /account (no email needed).
 //   wallet-order <email> <subtotal> [--discount N] [--code WALLET-XXXX] [--total N]
 //       Simulates a paid Shopify order: marks a wallet code used and awards points, exactly like
@@ -101,9 +101,9 @@ async function main() {
       console.log(`${customer.email}: paid-through date moved 10 days into the past. Run the cron job to mark them past due.`);
     } else if (command === "member") {
       const [email, planArg = "plus"] = args;
-      if (!email || !email.includes("@")) throw new Error("Usage: member <email> [basic|plus|premium]");
-      const plan = `customer_${planArg}`;
-      if (!["customer_basic", "customer_plus", "customer_premium"].includes(plan)) throw new Error("Plan must be basic, plus or premium.");
+      if (!email || !email.includes("@")) throw new Error("Usage: member <email> [basic|plus|premium|agent]");
+      const plan = planArg === "agent" ? "agent" : `customer_${planArg}`;
+      if (!["customer_basic", "customer_plus", "customer_premium", "agent"].includes(plan)) throw new Error("Plan must be basic, plus, premium or agent.");
       const existing = await prisma.customerSignup.findFirst({ where: { email: { equals: email, mode: "insensitive" }, status: { not: "cancelled" } } });
       if (existing) throw new Error(`${email} already has a membership (${existing.status}).`);
       await prisma.customerSignup.create({

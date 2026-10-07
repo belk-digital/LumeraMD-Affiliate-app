@@ -26,6 +26,9 @@ export interface CustomerRow {
   memberDiscountActive: boolean;
   consultationsUsed: number;
   consultationsIncluded: number;
+  complimentary: boolean;
+  complimentaryNote: string | null;
+  complimentaryBy: string | null;
   payments: { id: string; amount: number; paidOn: string; coversThrough: string; note: string | null }[];
 }
 
@@ -94,9 +97,11 @@ function ManageModal({
 }) {
   const router = useRouter();
   const [paying, setPaying] = useState(false);
+  const [granting, setGranting] = useState(false);
+  const [grantNote, setGrantNote] = useState("");
   const [amount, setAmount] = useState(String(c.monthlyPrice));
   const [note, setNote] = useState("");
-  const [busy, setBusy] = useState<"payment" | "consult" | null>(null);
+  const [busy, setBusy] = useState<"payment" | "consult" | "grant" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -123,6 +128,32 @@ function ManageModal({
       setNotice(cancelled ? "Payment recorded. The membership is active again." : "Payment recorded.");
       setPaying(false);
       setNote("");
+      router.refresh();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function grantAccess() {
+    setBusy("grant");
+    setError(null);
+    setNotice(null);
+    setWarnings([]);
+    try {
+      const res = await fetch(`/api/lumera-ops/customers/${c.id}/complimentary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: grantNote }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Could not grant access.");
+        return;
+      }
+      setWarnings(data.warnings ?? []);
+      setNotice("Complimentary access granted. The membership is active with no payment.");
+      setGranting(false);
+      setGrantNote("");
       router.refresh();
     } finally {
       setBusy(null);
@@ -174,8 +205,17 @@ function ManageModal({
             <Detail label="Status">
               <StatusPill status={c.status} />
             </Detail>
+            {c.complimentary && (
+              <Detail label="Billing">
+                Complimentary
+                <span className="block text-xs font-normal text-ink/50">
+                  {c.complimentaryNote}
+                  {c.complimentaryBy ? ` · by ${c.complimentaryBy}` : ""}
+                </span>
+              </Detail>
+            )}
             <Detail label={c.status === "active" ? "Active through" : "Period ended"}>
-              {c.currentPeriodEnd ?? "—"}
+              {c.complimentary ? "No end date" : (c.currentPeriodEnd ?? "—")}
             </Detail>
             <Detail label="Phone">{c.phone || "—"}</Detail>
             <Detail label="Referred by">{c.referrer || "—"}</Detail>
@@ -225,6 +265,61 @@ function ManageModal({
           )}
 
           <WalletSection email={c.email} />
+
+          {!c.complimentary && (
+            <div className="rounded-xl border border-dashed border-line p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-heading text-sm font-semibold text-ink">Skip payment</h3>
+                  <p className="text-xs text-ink/50">
+                    Onboard someone you know without billing. They get full access with no end date.
+                  </p>
+                </div>
+                {!granting && (
+                  <button
+                    onClick={() => setGranting(true)}
+                    className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink/70 transition hover:bg-page-bg"
+                  >
+                    Grant free access
+                  </button>
+                )}
+              </div>
+              {granting && (
+                <div className="mt-3 space-y-3 rounded-lg bg-page-bg/60 p-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-ink/50">Who is this and why? (required)</label>
+                    <input
+                      className={inputClass}
+                      maxLength={500}
+                      placeholder="e.g. Friend of the founder, onboarding for free"
+                      value={grantNote}
+                      onChange={(e) => setGrantNote(e.target.value)}
+                    />
+                  </div>
+                  <p className="text-xs text-ink/50">
+                    Turns on the member discount and emails them. No payment is recorded, so no commission or
+                    points are earned. Cancelling or recording a real payment ends it.
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setGranting(false)}
+                      disabled={busy !== null}
+                      className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink/70 transition hover:bg-white disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={grantAccess}
+                      disabled={busy !== null || !grantNote.trim()}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white transition hover:bg-primary-dark disabled:opacity-50"
+                    >
+                      {busy === "grant" ? "Granting…" : "Grant access"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="rounded-xl border border-line p-4">
             <div className="mb-2 flex items-center justify-between">

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { CUSTOMER_PLANS, PLANS, TEST_KIT_PRICE, type PlanKey } from "@/lib/membership/plans";
 import Icon from "@/components/Icon";
 import AccountShell from "../AccountShell";
+import { affiliateIdFor } from "@/lib/customers/crossLinks";
 import { Badge, ButtonLink, Card, DataTable, MEMBERSHIP_LABEL, MEMBERSHIP_TONE, Page, PageHeader, fmtDate, fmtDateLong, usd } from "../ui";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,11 @@ export default async function MembershipPage() {
   const currentIndex = CUSTOMER_PLANS.findIndex((p) => p.key === customer.plan);
 
   return (
-    <AccountShell name={`${customer.firstName} ${customer.lastName}`.trim()} email={customer.email}>
+    <AccountShell
+      name={`${customer.firstName} ${customer.lastName}`.trim()}
+      email={customer.email}
+      affiliateId={await affiliateIdFor(customer.email)}
+    >
       <Page>
         <PageHeader title="Membership" subtitle="Your plan, benefits and payments." />
 
@@ -29,13 +34,16 @@ export default async function MembershipPage() {
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
               <span className="font-heading text-3xl font-bold text-ink">{plan?.name ?? customer.plan}</span>
-              {plan && <span className="ml-2 text-lg text-ink/55">{usd(plan.monthlyPrice)} / month</span>}
+              {customer.complimentary ? <span className="ml-2 text-lg text-ink/55">Complimentary</span> : plan && <span className="ml-2 text-lg text-ink/55">{usd(plan.monthlyPrice)} / month</span>}
             </div>
             <Badge tone={MEMBERSHIP_TONE[customer.status] ?? "slate"}>{MEMBERSHIP_LABEL[customer.status] ?? customer.status}</Badge>
           </div>
           <dl className="mt-3 grid gap-x-8 gap-y-1 text-sm text-ink/65 sm:grid-cols-2">
             {customer.activatedAt && (
               <div className="flex justify-between gap-3"><dt>Member since</dt><dd className="font-medium text-ink">{fmtDateLong(customer.activatedAt)}</dd></div>
+            )}
+            {customer.complimentary && customer.status !== "cancelled" && (
+              <div className="flex justify-between gap-3"><dt>Billing</dt><dd className="font-medium text-ink">Complimentary, no payment needed</dd></div>
             )}
             {customer.currentPeriodEnd && customer.status !== "cancelled" && (
               <div className="flex justify-between gap-3"><dt>Paid through</dt><dd className="font-medium text-ink">{fmtDateLong(customer.currentPeriodEnd)}</dd></div>
@@ -58,6 +66,7 @@ export default async function MembershipPage() {
           )}
         </Card>
 
+        {currentIndex >= 0 && (
         <Card title="Compare plans" icon="pie">
           <div className="grid gap-4 md:grid-cols-3">
             {CUSTOMER_PLANS.map((p, i) => {
@@ -104,6 +113,7 @@ export default async function MembershipPage() {
             Plan changes are handled by our team. Test kit list price is {usd(TEST_KIT_PRICE)}.
           </p>
         </Card>
+        )}
 
         <Card title="Payments" icon="dollar">
           <DataTable

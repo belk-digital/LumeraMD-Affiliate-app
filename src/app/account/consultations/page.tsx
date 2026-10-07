@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { PLANS, type PlanKey } from "@/lib/membership/plans";
 import Icon from "@/components/Icon";
 import AccountShell from "../AccountShell";
+import { affiliateIdFor } from "@/lib/customers/crossLinks";
 import { Badge, ButtonLink, Card, DataTable, Page, PageHeader, StatCard, fmtDate } from "../ui";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +23,11 @@ export default async function ConsultationsPage() {
   });
 
   return (
-    <AccountShell name={`${customer.firstName} ${customer.lastName}`.trim()} email={customer.email}>
+    <AccountShell
+      name={`${customer.firstName} ${customer.lastName}`.trim()}
+      email={customer.email}
+      affiliateId={await affiliateIdFor(customer.email)}
+    >
       <Page>
         <PageHeader title="Consultations" subtitle="Telehealth consultations included with your plan." />
 

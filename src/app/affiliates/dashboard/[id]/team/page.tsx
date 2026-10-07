@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getTeamOverview } from "@/lib/affiliates/dashboardData";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import DashboardShell from "../DashboardShell";
+import { hasMembership } from "@/lib/customers/crossLinks";
 import TeamClient from "./TeamClient";
 import { canSeeTeam } from "@/lib/affiliates/team";
 
@@ -32,6 +33,7 @@ export default async function TeamPage({
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
       showTeam={await canSeeTeam(affiliate)}
+      hasMembership={await hasMembership(affiliate.userEmail)}
     >
       <div className="p-4 md:p-6 lg:p-8">
         <TeamClient 

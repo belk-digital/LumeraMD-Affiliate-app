@@ -81,6 +81,15 @@ model Affiliate {
   // Turning it off stops NEW recruiting only; their existing team and earnings are untouched.
   canRecruit            Boolean           @default(true)
 
+  // 90-day activity cycle (only used while the program switch is on). The cycle ends at cycleEndsAt:
+  // an affiliate who met the requirement rolls into a new cycle and stays active until it ends,
+  // one who did not is suspended. activeUntil carries "active" across a rollover so uplines keep
+  // counting a recruit who passed last cycle.
+  cycleStartedAt        DateTime?
+  cycleEndsAt           DateTime?
+  activeUntil           DateTime?
+  cycleWarningStage     Int               @default(0)
+
   flaggedForReview      Boolean           @default(false)
   fraudScore            Int               @default(0)
   fraudNotes            String?
@@ -294,6 +303,13 @@ model CustomerSignup {
   memberDiscountActive  Boolean              @default(false)
   consultationsUsed     Int                  @default(0)
 
+  // Complimentary membership: an admin granted access without a payment (a friend, a partner).
+  // It never lapses, takes no payment and pays no commission, until it is cancelled or a real
+  // payment is recorded.
+  complimentary         Boolean              @default(false)
+  complimentaryNote     String?
+  complimentaryBy       String?
+
   payments              MembershipPayment[]
   loginTokens           CustomerLoginToken[]
   consultations         MemberConsultation[]
@@ -399,6 +415,14 @@ model AffiliateSettings {
   walletMembershipEarnPercent   Float    @default(0)
   walletMinRedeem               Float    @default(5)
   walletRedeemExpiryDays        Int      @default(14)
+
+  // 90-day activity cycle. Off by default so nothing changes until an admin turns it on. Being active
+  // means recruiting activityRequiredRecruits affiliates, or reaching activityMinSales in own sales
+  // (0 = recruiting only), within each cycle. When on, it replaces the monthly override requirement.
+  activityEnabled               Boolean  @default(false)
+  activityCycleDays             Int      @default(90)
+  activityRequiredRecruits      Int      @default(3)
+  activityMinSales              Float    @default(0)
 
   unilevelEnabled               Boolean  @default(false)
   unilevelMinPersonalSales      Float    @default(0)

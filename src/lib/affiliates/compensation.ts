@@ -7,6 +7,12 @@ import {
   planFromSettings,
 } from "@/lib/affiliates/unilevel";
 import { round2 } from "@/lib/metrics";
+import {
+  activeRecruitsNow,
+  activityRulesFromSettings,
+  cycleProgress,
+  isCurrentlyActive,
+} from "@/lib/affiliates/activity";
 
 const VALID = { notIn: ["voided", "reversed"] as ("voided" | "reversed")[] };
 const MAX_LEVELS = 20; // how deep to count the downline; also a guard against cyclic data
@@ -23,6 +29,7 @@ export async function getCompensationOverview(affiliateId: string, now = new Dat
   ]);
   const plan = planFromSettings(settings);
   const window = monthWindow(now);
+  const activityRules = activityRulesFromSettings(settings);
 
   const [sales, activeRecruits, directRecruits, slotRows, lifetime, recent] = await Promise.all([
     personalSales(affiliateId, window),
@@ -48,14 +55,51 @@ export async function getCompensationOverview(affiliateId: string, now = new Dat
     }),
   ]);
 
+  // The 90-day activity cycle, when on: it replaces the monthly rule for overrides.
+  let activity: {
+    active: boolean;
+    cycleEndsAt: string | null;
+    daysLeft: number;
+    cycleDays: number;
+    recruits: number;
+    requiredRecruits: number;
+    sales: number;
+    minSales: number;
+    met: boolean;
+    activeRecruits: number;
+  } | null = null;
+  if (activityRules.enabled) {
+    const [progress, active, activeRecruitsByCycle] = await Promise.all([
+      cycleProgress(affiliate, activityRules),
+      isCurrentlyActive(affiliate, activityRules, now),
+      activeRecruitsNow(affiliateId, activityRules, now),
+    ]);
+    activity = {
+      active,
+      cycleEndsAt: affiliate.cycleEndsAt ? affiliate.cycleEndsAt.toISOString() : null,
+      daysLeft: affiliate.cycleEndsAt
+        ? Math.max(Math.ceil((affiliate.cycleEndsAt.getTime() - now.getTime()) / 86_400_000), 0)
+        : 0,
+      cycleDays: activityRules.cycleDays,
+      recruits: progress.recruits,
+      requiredRecruits: activityRules.requiredRecruits,
+      sales: round2(progress.sales),
+      minSales: activityRules.minSales,
+      met: progress.met,
+      activeRecruits: activeRecruitsByCycle,
+    };
+  }
+
   // Seller tier and progress to the next one, from this month's sales.
   const tier = sellerTierFor(sales, plan);
   const tierIndex = plan.sellerTiers.findIndex((t) => t.name === tier.name);
   const nextTier = plan.sellerTiers[tierIndex + 1] ?? null;
 
   // Qualification for overrides: both requirements, every month.
-  const meetsRecruits = activeRecruits >= plan.requiredActiveRecruits;
-  const meetsSales = sales >= plan.minPersonalSales;
+  const effectiveActiveRecruits = activity ? activity.activeRecruits : activeRecruits;
+  const meetsRecruits = effectiveActiveRecruits >= plan.requiredActiveRecruits;
+  const meetsSales = activity ? true : sales >= plan.minPersonalSales;
+  const qualified = activity ? activity.active && meetsRecruits : meetsRecruits && meetsSales;
 
   // This month's override earnings by paid slot.
   const slots = plan.overrideSlotRates.map((rate, i) => {
@@ -101,15 +145,16 @@ export async function getCompensationOverview(affiliateId: string, now = new Dat
         )
       : 1,
     qualification: {
-      qualified: meetsRecruits && meetsSales,
-      activeRecruits,
+      qualified,
+      activeRecruits: effectiveActiveRecruits,
       requiredRecruits: plan.requiredActiveRecruits,
       directRecruits,
       meetsRecruits,
-      minPersonalSales: plan.minPersonalSales,
+      minPersonalSales: activity ? 0 : plan.minPersonalSales,
       meetsSales,
       activeRecruitMinSales: plan.activeRecruitMinSales,
     },
+    activity,
     slots,
     overrideEarnedThisMonth: round2(slots.reduce((acc, s) => acc + s.earned, 0)),
     overrideEarnedLifetime: round2(lifetime._sum.amount ?? 0),

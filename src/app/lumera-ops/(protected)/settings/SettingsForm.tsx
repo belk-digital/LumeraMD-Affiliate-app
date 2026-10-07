@@ -19,6 +19,10 @@ interface Values {
   walletMembershipEarnPercent: number;
   walletMinRedeem: number;
   walletRedeemExpiryDays: number;
+  activityEnabled: boolean;
+  activityCycleDays: number;
+  activityRequiredRecruits: number;
+  activityMinSales: number;
   unilevelEnabled: boolean;
   membershipCommissionEnabled: boolean;
   unilevelMinPersonalSales: number;
@@ -453,6 +457,56 @@ export default function SettingsForm({ initial }: { initial: Values }) {
               className={inputClass}
               value={v.unilevelActiveRecruitMinSales}
               onChange={(e) => set("unilevelActiveRecruitMinSales", num(e))}
+            />
+          </Field>
+        </div>
+      </section>
+
+      <section className={cardClass}>
+        <h2 className="font-heading text-xl font-semibold text-ink">Activity cycle</h2>
+        <p className="mt-1 text-sm text-ink/55">
+          Every affiliate must stay active: within each cycle they recruit enough affiliates, or reach a
+          sales amount. Those who do start a new cycle; those who don't are suspended. While this is on
+          it replaces the monthly requirement for overrides: an upline qualifies by being active and
+          having enough active recruits. A new recruit counts as active once they meet the requirement
+          themselves.
+        </p>
+
+        <div className="mt-6">
+          <Toggle
+            id="activity-enabled"
+            checked={v.activityEnabled}
+            onChange={(c) => set("activityEnabled", c)}
+            label="Turn on the activity cycle"
+            hint="When turned on, everyone already approved starts a fresh cycle and counts as active for it, so nobody is suspended on day one."
+          />
+        </div>
+
+        <div className="mt-7 grid gap-x-6 gap-y-6 md:grid-cols-3">
+          <Field label="Cycle length (days)" hint="Warnings go out 14 and 3 days before the end.">
+            <SuffixInput
+              suffix="days"
+              min={7}
+              max={365}
+              value={v.activityCycleDays}
+              onChange={(e) => set("activityCycleDays", num(e))}
+            />
+          </Field>
+          <Field label="Recruits needed per cycle" hint="New affiliates they recruit during the cycle.">
+            <SuffixInput
+              suffix="recruits"
+              min={0}
+              max={100}
+              value={v.activityRequiredRecruits}
+              onChange={(e) => set("activityRequiredRecruits", num(e))}
+            />
+          </Field>
+          <Field label="Or own sales of ($)" hint="Their own sales in the cycle, instead of recruiting. 0 = recruiting only.">
+            <SuffixInput
+              suffix="$"
+              min={0}
+              value={v.activityMinSales}
+              onChange={(e) => set("activityMinSales", num(e))}
             />
           </Field>
         </div>

@@ -8,6 +8,7 @@ import { parseRange } from "@/lib/metrics";
 import { getAffiliateOverview } from "@/lib/affiliates/dashboardData";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import DashboardShell from "./DashboardShell";
+import { hasMembership } from "@/lib/customers/crossLinks";
 import CopyableRow from "./CopyableRow";
 import { Card } from "./ui";
 import { canSeeTeam } from "@/lib/affiliates/team";
@@ -57,6 +58,7 @@ export default async function DashboardPage({
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
       showTeam={await canSeeTeam(affiliate)}
+      hasMembership={await hasMembership(affiliate.userEmail)}
     >
       <div className="space-y-6 p-4 md:p-6">
         <div className="animate-fade-up">

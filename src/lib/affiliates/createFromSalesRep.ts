@@ -50,6 +50,27 @@ export async function createAffiliateFromSalesRepSignup(
         where: { id: signup.id },
         data: { status: "approved", linkedAffiliateId: affiliate.id },
       });
+
+      // The agent plan is a membership too (Premium benefits at $79/mo). Create it unpaid: the
+      // benefits switch on when an admin records the first payment. It deliberately has no
+      // referredByAffiliateId, so the $79 is a fee and never pays anyone commission.
+      const member = await tx.customerSignup.findFirst({
+        where: { email: { equals: signup.email, mode: "insensitive" } },
+      });
+      if (!member) {
+        await tx.customerSignup.create({
+          data: {
+            firstName: signup.firstName ?? displayNameFor(signup),
+            lastName: signup.lastName ?? "",
+            email: signup.email,
+            phone: signup.phone,
+            plan: "agent",
+          },
+        });
+      } else if (member.status !== "active" && member.plan !== "agent") {
+        // Already a customer who never paid (or lapsed): move them onto the agent plan.
+        await tx.customerSignup.update({ where: { id: member.id }, data: { plan: "agent" } });
+      }
     },
   });
 }

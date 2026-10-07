@@ -1,5 +1,6 @@
 import { requireCustomer } from "@/lib/customers/requireCustomer";
 import AccountShell from "../AccountShell";
+import { affiliateIdFor } from "@/lib/customers/crossLinks";
 import { LogoutButton } from "../AccountClient";
 import { Card, Page, PageHeader } from "../ui";
 import ProfileForm from "./ProfileForm";
@@ -11,7 +12,11 @@ export default async function SettingsPage() {
   const customer = await requireCustomer();
 
   return (
-    <AccountShell name={`${customer.firstName} ${customer.lastName}`.trim()} email={customer.email}>
+    <AccountShell
+      name={`${customer.firstName} ${customer.lastName}`.trim()}
+      email={customer.email}
+      affiliateId={await affiliateIdFor(customer.email)}
+    >
       <Page>
         <PageHeader title="Account Settings" subtitle="Manage your profile." />
 

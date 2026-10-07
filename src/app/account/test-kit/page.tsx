@@ -2,6 +2,7 @@ import { requireCustomer } from "@/lib/customers/requireCustomer";
 import { PLANS, TEST_KIT_PRICE, type PlanKey } from "@/lib/membership/plans";
 import Icon from "@/components/Icon";
 import AccountShell from "../AccountShell";
+import { affiliateIdFor } from "@/lib/customers/crossLinks";
 import { CopyCode } from "../AccountClient";
 import { ButtonLink, Card, Page, PageHeader, usd } from "../ui";
 
@@ -32,7 +33,11 @@ export default async function TestKitPage() {
       : null;
 
   return (
-    <AccountShell name={`${customer.firstName} ${customer.lastName}`.trim()} email={customer.email}>
+    <AccountShell
+      name={`${customer.firstName} ${customer.lastName}`.trim()}
+      email={customer.email}
+      affiliateId={await affiliateIdFor(customer.email)}
+    >
       <Page>
         <PageHeader title="DNA Test Kit" subtitle="Order your DNA test kit at your member price." />
 

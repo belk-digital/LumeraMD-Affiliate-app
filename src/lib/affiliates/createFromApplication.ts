@@ -3,6 +3,7 @@ import type { Affiliate, Prisma } from "@/generated/prisma/client";
 import { createDiscountCode } from "@/lib/shopify/client";
 import { notifyAffiliateApproved } from "@/lib/email/notifications";
 import { createNotification } from "@/lib/notifications/create";
+import { startCycleIfEnabled } from "@/lib/affiliates/activity";
 
 function slugify(name: string) {
   const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -80,6 +81,13 @@ export async function provisionAffiliate(params: {
   });
 
   await notifyAffiliateApproved(affiliate);
+
+  // Begins their 90-day activity cycle when that program is on. Never blocks approval.
+  try {
+    await startCycleIfEnabled(affiliate.id);
+  } catch (err) {
+    console.error("Could not start the activity cycle", err);
+  }
 
   await createNotification(affiliate.id, {
     type: "welcome",

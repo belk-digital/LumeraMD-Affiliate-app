@@ -15,27 +15,41 @@ const mainNav: NavItem[] = [
   { href: `${BASE}/test-kit`, label: "DNA Test Kit", icon: "flask", isActive: (p) => p.startsWith(`${BASE}/test-kit`) },
 ];
 
-const bottomNav: NavItem[] = [
-  { href: `${BASE}/settings`, label: "Account Settings", icon: "settings", isActive: (p) => p.startsWith(`${BASE}/settings`) },
-];
+const settingsNav: NavItem = {
+  href: `${BASE}/settings`,
+  label: "Account Settings",
+  icon: "settings",
+  isActive: (p) => p.startsWith(`${BASE}/settings`),
+};
 
 /** The member dashboard frame: sidebar, top bar with the user menu, and a tab strip on phones. */
 export default function AccountShell({
   name,
   email,
+  affiliateId = null,
   children,
 }: {
   name: string;
   email: string;
+  /** Set when this member is also an approved affiliate (e.g. a sales rep); adds a link to that dashboard. */
+  affiliateId?: string | null;
   children: React.ReactNode;
 }) {
+  const affiliateHref = affiliateId ? `/affiliates/dashboard/${affiliateId}` : null;
+  const bottomNav: NavItem[] = [
+    ...(affiliateHref ? [{ href: affiliateHref, label: "Affiliate dashboard", icon: "chart" as const, isActive: () => false }] : []),
+    settingsNav,
+  ];
   const menu = (variant: "topbar" | "sidebar") => (
     <UserMenu
       name={name}
       role="Member"
       email={email}
       variant={variant}
-      items={[{ label: "Account settings", href: `${BASE}/settings` }]}
+      items={[
+        ...(affiliateHref ? [{ label: "Affiliate dashboard", href: affiliateHref }] : []),
+        { label: "Account settings", href: `${BASE}/settings` },
+      ]}
       logoutEndpoint="/api/customers/auth/logout"
       logoutRedirect="/account/login"
     />

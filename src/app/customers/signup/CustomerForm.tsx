@@ -10,8 +10,11 @@ const inputClass =
   "w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/35 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15";
 const labelClass = "mb-1.5 block text-sm font-medium text-ink";
 
-// The plan highlighted as the suggested choice.
-const POPULAR: CustomerPlanKey = "customer_plus";
+// Badge shown on top of a plan card to steer the choice.
+const PLAN_BADGES: Partial<Record<CustomerPlanKey, string>> = {
+  customer_plus: "Most Popular",
+  customer_premium: "Best Value",
+};
 
 export default function CustomerForm({ referralSlug }: { referralSlug?: string }) {
   const [submitted, setSubmitted] = useState(false);
@@ -120,10 +123,10 @@ export default function CustomerForm({ referralSlug }: { referralSlug?: string }
                   selected ? "border-primary bg-white shadow-md" : "border-line hover:border-primary/40"
                 }`}
               >
-                {p.key === POPULAR && (
+                {PLAN_BADGES[p.key as CustomerPlanKey] && (
                   <span className="absolute -top-3 left-4 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-medium text-white">
                     <Icon name="star" className="h-3 w-3" />
-                    Most Popular
+                    {PLAN_BADGES[p.key as CustomerPlanKey]}
                   </span>
                 )}
                 <input

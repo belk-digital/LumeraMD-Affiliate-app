@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import DashboardShell from "../DashboardShell";
+import { hasMembership } from "@/lib/customers/crossLinks";
 import SettingsForm from "./SettingsForm";
 import { requireAffiliateAccess } from "@/lib/affiliates/access";
 import { canSeeTeam } from "@/lib/affiliates/team";
@@ -34,6 +35,7 @@ export default async function SettingsPage({
       referralLink={referralLink}
       discountCode={affiliate.shopifyDiscountCode}
       showTeam={await canSeeTeam(affiliate)}
+      hasMembership={await hasMembership(affiliate.userEmail)}
     >
       <div className="px-4 sm:px-6 py-6 space-y-6 max-w-2xl">
         <div>

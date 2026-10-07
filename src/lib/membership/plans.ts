@@ -26,14 +26,25 @@ export const TEST_KIT_PRICE = 699;
 export const PLANS: Record<PlanKey, MembershipPlan> = {
   agent: {
     key: "agent",
-    name: "Agent",
+    // The agent plan is the customer Premium plan at a discounted $79 (list $179), plus overrides.
+    name: "Premium",
     audience: "agent",
     monthlyPrice: 79,
     listPrice: 179,
-    webDiscountPercent: 0,
-    benefits: ["Training and education", "Promotions", "Product discounts", "Override commissions"],
-    consultations: 0,
+    webDiscountPercent: 15,
+    benefits: [
+      "15% off web pricing",
+      "Deeper discounts on peptides and supplements",
+      "Updated DNA results",
+      "2 consultations",
+      "Test kit for $499",
+      "Access to wellness",
+      "Discount on wellness",
+      "Override commissions",
+    ],
+    consultations: 2,
     overrideEligible: true,
+    testKitPrice: 499,
   },
   customer_basic: {
     key: "customer_basic",

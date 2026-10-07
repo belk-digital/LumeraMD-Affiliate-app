@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { processPendingConversions } from "@/lib/affiliates/processPending";
 import { processMembershipLifecycle } from "@/lib/membership/lifecycle";
 import { processWalletRedemptions } from "@/lib/wallet/service";
+import { processActivityCycles } from "@/lib/affiliates/activity";
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
@@ -14,5 +15,7 @@ export async function GET(req: NextRequest) {
   const memberships = await processMembershipLifecycle();
   // Wallet codes nobody used by their deadline expire and the points go back to the member.
   const wallet = await processWalletRedemptions();
-  return NextResponse.json({ ok: true, ...result, memberships, wallet });
+  // The 90-day activity cycle: roll over those who met it, warn and suspend those who did not.
+  const activity = await processActivityCycles();
+  return NextResponse.json({ ok: true, ...result, memberships, wallet, activity });
 }

@@ -15,6 +15,7 @@ export default function DashboardShell({
   referralLink,
   discountCode = null,
   showTeam = true,
+  hasMembership = false,
   children,
 }: {
   affiliateId: string;
@@ -24,6 +25,8 @@ export default function DashboardShell({
   discountCode?: string | null;
   /** False hides the Team page for affiliates an admin hasn't allowed to recruit. */
   showTeam?: boolean;
+  /** True when this affiliate also has a member account (e.g. the agent plan); adds a link to it. */
+  hasMembership?: boolean;
   children: React.ReactNode;
 }) {
   const [copied, setCopied] = useState(false);
@@ -64,6 +67,9 @@ export default function DashboardShell({
   ];
   const mainNav = showTeam ? allMainNav : allMainNav.filter((item) => item.label !== "Team");
   const bottomNav: NavItem[] = [
+    ...(hasMembership
+      ? [{ href: "/account", label: "My membership", icon: "user" as const, isActive: () => false }]
+      : []),
     {
       href: `${base}/settings`,
       label: "Settings",
@@ -79,7 +85,10 @@ export default function DashboardShell({
       role="Affiliate"
       email={affiliateEmail ?? ""}
       variant={variant}
-      items={[{ label: "Settings", href: `${base}/settings` }]}
+      items={[
+        ...(hasMembership ? [{ label: "My membership", href: "/account" }] : []),
+        { label: "Settings", href: `${base}/settings` },
+      ]}
       logoutEndpoint="/api/affiliates/auth/logout"
       logoutRedirect="/"
     />

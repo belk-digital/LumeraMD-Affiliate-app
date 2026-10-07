@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrResponse } from "@/lib/admin/requireAdmin";
+import { startCycleIfEnabled } from "@/lib/affiliates/activity";
 
 /** Per-affiliate terms an admin can change after approval. */
 export async function PATCH(
@@ -129,6 +130,12 @@ export async function PATCH(
       where: { id },
       data: updateData,
     });
+    // Reactivating a suspended affiliate gives them a fresh activity cycle (when that program is on).
+    if (existing.status === "suspended" && affiliate.status === "approved") {
+      await startCycleIfEnabled(affiliate.id).catch((e) =>
+        console.error("Could not restart the activity cycle", e),
+      );
+    }
     return NextResponse.json({ ok: true, affiliate });
   } catch (err: any) {
     console.error("Failed to update affiliate:", err);

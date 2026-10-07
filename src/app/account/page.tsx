@@ -5,6 +5,7 @@ import { getWalletRules } from "@/lib/wallet/service";
 import { formatPoints } from "@/lib/wallet/rules";
 import Icon from "@/components/Icon";
 import AccountShell from "./AccountShell";
+import { affiliateIdFor } from "@/lib/customers/crossLinks";
 import { CopyCode } from "./AccountClient";
 import {
   Badge,
@@ -43,13 +44,17 @@ export default async function AccountOverviewPage() {
 
   const statusLine: Record<string, string> = {
     pending_payment: "Waiting for your first payment. We'll email you when it's active.",
-    active: customer.currentPeriodEnd ? `Active through ${fmtDateLong(customer.currentPeriodEnd)}.` : "Your membership is active.",
+    active: customer.complimentary ? "Complimentary membership: no payment needed." : customer.currentPeriodEnd ? `Active through ${fmtDateLong(customer.currentPeriodEnd)}.` : "Your membership is active.",
     past_due: "Your payment is overdue, so your member discount is paused.",
     cancelled: customer.cancelledAt ? `Cancelled on ${fmtDateLong(customer.cancelledAt)}.` : "This membership was cancelled.",
   };
 
   return (
-    <AccountShell name={`${customer.firstName} ${customer.lastName}`.trim()} email={customer.email}>
+    <AccountShell
+      name={`${customer.firstName} ${customer.lastName}`.trim()}
+      email={customer.email}
+      affiliateId={await affiliateIdFor(customer.email)}
+    >
       <Page>
         <div className="animate-fade-up relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-[#2c5a86] p-6 text-white md:p-8">
           <div className="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full bg-white/10" />
@@ -66,7 +71,7 @@ export default async function AccountOverviewPage() {
             value={planName}
             sub={
               <>
-                {plan ? `${usd(plan.monthlyPrice)} / month` : ""}
+                {customer.complimentary ? "Complimentary" : plan ? `${usd(plan.monthlyPrice)} / month` : ""}
                 {customer.status === "active" && customer.currentPeriodEnd && (
                   <span className="block">Active through {fmtDate(customer.currentPeriodEnd)}</span>
                 )}
@@ -108,7 +113,7 @@ export default async function AccountOverviewPage() {
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
                 <span className="font-heading text-3xl font-bold text-ink">{planName}</span>
-                {plan && <span className="ml-2 text-lg text-ink/55">{usd(plan.monthlyPrice)} / month</span>}
+                {customer.complimentary ? <span className="ml-2 text-lg text-ink/55">Complimentary</span> : plan && <span className="ml-2 text-lg text-ink/55">{usd(plan.monthlyPrice)} / month</span>}
               </div>
               <Badge tone={MEMBERSHIP_TONE[customer.status] ?? "slate"}>{MEMBERSHIP_LABEL[customer.status] ?? customer.status}</Badge>
             </div>
