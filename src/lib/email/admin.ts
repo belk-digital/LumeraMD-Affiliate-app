@@ -2,9 +2,7 @@ import { sendEmail } from "@/lib/email/send";
 import { buildNotificationEmail } from "@/lib/email/templates/notification";
 
 const OPS_EMAIL = process.env.AFFILIATE_OPS_EMAIL ?? "info@lumeramd.com";
-// TEMPORARY, for testing on production: signup alerts go to this address instead of OPS_EMAIL.
-// TO REVERT: set ADMIN_ALERT_EMAIL = OPS_EMAIL (info@lumeramd.com).
-const ADMIN_ALERT_EMAIL = "main.belkdigital@gmail.com";
+const ADMIN_ALERT_EMAIL = OPS_EMAIL;
 const APP_BASE_URL = process.env.APP_BASE_URL ?? "";
 const LOGO_WHITE_URL = `${APP_BASE_URL}/lumera-logo-white.png`;
 

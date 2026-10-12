@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { Percent, CheckCircle2, Clock, Check, Edit2, X } from "lucide-react";
 import { pctChange } from "@/lib/metrics";
 
-export function TabCommission({ affiliate }: { affiliate: Record<string, any> }) {
+export function TabCommission({
+  affiliate,
+  unilevelEnabled,
+}: {
+  affiliate: Record<string, any>;
+  unilevelEnabled: boolean;
+}) {
   const router = useRouter();
   
   const [isEditing, setIsEditing] = useState<string | null>(null);
@@ -157,8 +163,19 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
           )}
           
           <div className="p-5 space-y-6 text-sm flex-1">
+            {unilevelEnabled && (
+              <div className="p-3 bg-orange-50 border border-orange-200 text-orange-800 text-xs rounded-xl">
+                The unilevel plan is on, so the Standard Rate and Custom Rate below are not used.
+                Seller tiers and the 5-level overrides in Settings set what is paid.
+              </div>
+            )}
             <div className="flex justify-between items-center pb-4 border-b border-line/50">
-              <span className="text-ink/60">Standard Rate</span>
+              <div>
+                <span className="text-ink/60">Standard Rate</span>
+                <p className="text-xs text-ink/40 mt-0.5 max-w-xs">
+                  What this affiliate earns on their own sales (% of the order subtotal).
+                </p>
+              </div>
               <div className="flex items-center gap-4">
                 {isEditing === "standard" ? (
                   <div className="flex items-center gap-2">
@@ -175,7 +192,7 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
                 ) : (
                   <>
                     <span className="font-medium text-ink">{affiliate.commissionRate}%</span>
-                    <button onClick={() => setIsEditing("standard")} className="flex items-center gap-1.5 px-3 py-1.5 border border-line rounded-lg hover:bg-page-bg transition">
+                    <button onClick={() => setIsEditing("standard")} disabled={unilevelEnabled} className="flex items-center gap-1.5 px-3 py-1.5 border border-line rounded-lg hover:bg-page-bg transition disabled:opacity-40 disabled:cursor-not-allowed">
                       <Edit2 className="w-3.5 h-3.5" /> Edit
                     </button>
                   </>
@@ -184,7 +201,13 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
             </div>
 
             <div className="flex justify-between items-center pb-4 border-b border-line/50">
-              <span className="text-ink/60">Custom Rate</span>
+              <div>
+                <span className="text-ink/60">Custom Rate</span>
+                <p className="text-xs text-ink/40 mt-0.5 max-w-xs">
+                  Team override: what this affiliate earns when someone they recruited makes a
+                  sale. Blank uses the program default.
+                </p>
+              </div>
               <div className="flex items-center gap-4">
                 {isEditing === "custom" ? (
                   <div className="flex items-center gap-2">
@@ -202,7 +225,7 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
                 ) : (
                   <>
                     <span className="font-medium text-ink">{affiliate.parentOverrideRate !== null ? `${affiliate.parentOverrideRate}%` : "—"}</span>
-                    <button onClick={() => setIsEditing("custom")} className="flex items-center gap-1.5 px-3 py-1.5 border border-line rounded-lg hover:bg-page-bg transition">
+                    <button onClick={() => setIsEditing("custom")} disabled={unilevelEnabled} className="flex items-center gap-1.5 px-3 py-1.5 border border-line rounded-lg hover:bg-page-bg transition disabled:opacity-40 disabled:cursor-not-allowed">
                       <Edit2 className="w-3.5 h-3.5" /> Set
                     </button>
                   </>
@@ -211,7 +234,12 @@ export function TabCommission({ affiliate }: { affiliate: Record<string, any> })
             </div>
 
             <div className="flex justify-between items-center pb-4 border-b border-line/50">
-              <span className="text-ink/60">Cookie Duration</span>
+              <div>
+                <span className="text-ink/60">Cookie Duration</span>
+                <p className="text-xs text-ink/40 mt-0.5 max-w-xs">
+                  How long a referral link click credits this affiliate for a purchase.
+                </p>
+              </div>
               <div className="flex items-center gap-4">
                 {isEditing === "cookie" ? (
                   <div className="flex items-center gap-2">

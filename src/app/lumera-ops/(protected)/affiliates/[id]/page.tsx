@@ -41,6 +41,8 @@ export default async function AdminAffiliateDetailPage({
   });
   if (!affiliate) notFound();
 
+  const settings = await prisma.affiliateSettings.findUnique({ where: { id: "global" } });
+  const unilevelEnabled = settings?.unilevelEnabled ?? false;
 
 
   const initials = affiliate.displayName
@@ -126,7 +128,9 @@ export default async function AdminAffiliateDetailPage({
       )}
 
       {tab === "referral" && <TabReferral affiliate={affiliate} />}
-      {tab === "commission" && <TabCommission affiliate={affiliate} />}
+      {tab === "commission" && (
+        <TabCommission affiliate={affiliate} unilevelEnabled={unilevelEnabled} />
+      )}
       {tab === "stats" && <TabStats affiliate={affiliate} />}
       {tab === "payout" && <TabPayout affiliate={affiliate} />}
       {tab === "fraud" && <TabFraud affiliate={affiliate} />}

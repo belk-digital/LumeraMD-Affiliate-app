@@ -31,8 +31,11 @@ export async function POST(req: NextRequest) {
     const referralSlug = createReferralSlug(displayName);
     const shopifyDiscountCode = referralSlug.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+    const settings = await prisma.affiliateSettings.findUnique({ where: { id: "global" } });
+
     const newAffiliate = await prisma.affiliate.create({
       data: {
+        canRecruit: settings?.defaultCanRecruit ?? false,
         userEmail: email,
         displayName: displayName,
         status: status || 'approved',
