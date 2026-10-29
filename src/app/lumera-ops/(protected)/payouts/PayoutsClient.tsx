@@ -454,7 +454,13 @@ function ActionMenu({ payout, onEdit }: { payout: any, onEdit: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      if (res.ok) router.refresh();
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Couldn't update the payout. Refresh the page and try again.");
+        router.refresh();
+      }
     } finally {
       setIsUpdating(false);
       setIsOpen(false);
