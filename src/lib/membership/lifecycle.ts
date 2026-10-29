@@ -5,6 +5,7 @@ import { PLANS, type PlanKey } from "@/lib/membership/plans";
 import { createDiscountCode, deleteDiscountCodeByString } from "@/lib/shopify/client";
 import { attributeOrder } from "@/lib/affiliates/commission";
 import { awardMembershipPoints } from "@/lib/wallet/service";
+import { cancelSubscription } from "@/lib/authnet/client";
 import {
   notifyMembershipActive,
   notifyMembershipCancelled,
@@ -310,9 +311,34 @@ export async function cancelMembership(customerId: string, opts: LifecycleOption
   if (customer.status === "cancelled") {
     throw new MembershipError("This membership is already cancelled.", 409);
   }
+  // Stop the monthly card charge first, so a cancelled member is never billed again. If Authorize.net
+  // can't be reached the id stays on the record and the admin is told to cancel it by hand.
+  const billingWarnings: string[] = [];
+  let clearSubscription = false;
+  if (customer.authnetSubscriptionId) {
+    try {
+      await cancelSubscription(customer.authnetSubscriptionId);
+      clearSubscription = true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/cancel|terminat/i.test(message)) {
+        clearSubscription = true; // already stopped on their side
+      } else {
+        console.error("Authorize.net subscription cancel failed", customer.authnetSubscriptionId, message);
+        billingWarnings.push(
+          `The membership was cancelled, but its Authorize.net subscription (${customer.authnetSubscriptionId}) could not be stopped: ${message}. Cancel it in Authorize.net so they are not charged again.`,
+        );
+      }
+    }
+  }
   const cancelled = await prisma.customerSignup.update({
     where: { id: customer.id },
-    data: { status: "cancelled", cancelledAt: new Date(), complimentary: false },
+    data: {
+      status: "cancelled",
+      cancelledAt: new Date(),
+      complimentary: false,
+      ...(clearSubscription ? { authnetSubscriptionId: null } : {}),
+    },
   });
   const discount = await removeMemberDiscount(cancelled, opts);
 
@@ -324,7 +350,10 @@ export async function cancelMembership(customerId: string, opts: LifecycleOption
       console.error("Membership email failed", err);
     }
   }
-  return { customer: discount.customer, warnings: discount.error ? [discount.error] : [] };
+  return {
+    customer: discount.customer,
+    warnings: [...(discount.error ? [discount.error] : []), ...billingWarnings],
+  };
 }
 
 /** Admin bookkeeping: how many of the plan's included consultations have been used. */
@@ -390,6 +419,14 @@ export async function processMembershipLifecycle(opts: LifecycleOptions = {}, no
     if (res.count === 0) continue;
     markedPastDue += 1;
     const fresh = await getCustomer(customer.id);
+    // A suspended rep can't use the program, so don't ask them to pay for it; reactivation sorts out billing.
+    if (fresh.plan === "agent") {
+      const suspended = await prisma.affiliate.findFirst({
+        where: { userEmail: { equals: fresh.email, mode: "insensitive" }, status: "suspended" },
+        select: { id: true },
+      });
+      if (suspended) continue;
+    }
     try {
       await notifyMembershipPastDue(fresh);
     } catch (err) {

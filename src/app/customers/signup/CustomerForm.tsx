@@ -46,6 +46,11 @@ export default function CustomerForm({ referralSlug }: { referralSlug?: string }
         setError(data.error ?? "Something went wrong");
         return;
       }
+      if (typeof data.payUrl === "string" && data.payUrl.startsWith("/pay/")) {
+        // Leave the button disabled while the browser moves on to the payment page.
+        window.location.href = data.payUrl;
+        return;
+      }
       setSubmitted(true);
     } finally {
       setSubmitting(false);

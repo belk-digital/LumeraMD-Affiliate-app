@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrResponse } from "@/lib/admin/requireAdmin";
 import { startCycleIfEnabled } from "@/lib/affiliates/activity";
+import { pauseRepBilling, resumeRepBilling } from "@/lib/authnet/repBilling";
 
 /** Per-affiliate terms an admin can change after approval. */
 export async function PATCH(
@@ -131,12 +132,17 @@ export async function PATCH(
       data: updateData,
     });
     // Reactivating a suspended affiliate gives them a fresh activity cycle (when that program is on).
+    let billingWarnings: string[] = [];
     if (existing.status === "suspended" && affiliate.status === "approved") {
       await startCycleIfEnabled(affiliate.id).catch((e) =>
         console.error("Could not restart the activity cycle", e),
       );
+      billingWarnings = await resumeRepBilling(affiliate).catch(() => []);
+    } else if (existing.status !== "suspended" && affiliate.status === "suspended") {
+      // A suspended rep isn't charged their monthly Premium fee while they can't use the program.
+      billingWarnings = await pauseRepBilling(affiliate).catch(() => []);
     }
-    return NextResponse.json({ ok: true, affiliate });
+    return NextResponse.json({ ok: true, affiliate, billingWarnings });
   } catch (err: any) {
     console.error("Failed to update affiliate:", err);
     return NextResponse.json({ error: err.message || "Failed to update affiliate" }, { status: 500 });

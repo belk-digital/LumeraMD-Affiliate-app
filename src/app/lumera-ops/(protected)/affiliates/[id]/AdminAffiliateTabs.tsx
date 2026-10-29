@@ -314,6 +314,8 @@ export function AccountStatusCard({ affiliate }: { affiliate: Record<string, any
       });
 
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.billingWarnings?.length) alert(data.billingWarnings.join("\n\n"));
         router.refresh();
       } else {
         const data = await res.json().catch(() => ({}));

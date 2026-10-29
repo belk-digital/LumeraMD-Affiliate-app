@@ -62,7 +62,7 @@ export function AffiliatesClient({
   const bulkSetStatus = async (newStatus: "approved" | "suspended") => {
     setIsBulkUpdating(true);
     try {
-      await Promise.all(
+      const responses = await Promise.all(
         Array.from(selected).map((id) =>
           fetch(`/api/lumera-ops/affiliates/${id}`, {
             method: "PATCH",
@@ -71,9 +71,11 @@ export function AffiliatesClient({
               status: newStatus,
               suspendReason: newStatus === "suspended" ? "Suspended via bulk action" : null,
             }),
-          })
+          }).then((res) => res.json().catch(() => ({})))
         )
       );
+      const warnings = responses.flatMap((r) => (Array.isArray(r.billingWarnings) ? r.billingWarnings : []));
+      if (warnings.length) alert(warnings.join("\n\n"));
       setSelected(new Set());
       router.refresh();
     } finally {
@@ -595,6 +597,8 @@ function ActionMenu({ affiliate }: { affiliate: any }) {
         }),
       });
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.billingWarnings?.length) alert(data.billingWarnings.join("\n\n"));
         router.refresh();
       }
     } finally {

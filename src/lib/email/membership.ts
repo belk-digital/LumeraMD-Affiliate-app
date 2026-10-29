@@ -4,6 +4,7 @@ import { buildMagicLinkEmail } from "@/lib/email/templates/magic-link";
 import type { CustomerSignup } from "@/generated/prisma/client";
 import { PLANS, type PlanKey } from "@/lib/membership/plans";
 import { notifyAdminNewMember } from "@/lib/email/admin";
+import { authnetConfigured } from "@/lib/authnet/client";
 
 const OPS_EMAIL = process.env.AFFILIATE_OPS_EMAIL ?? "info@lumeramd.com";
 const APP_BASE_URL = process.env.APP_BASE_URL ?? "";
@@ -13,17 +14,24 @@ const planName = (c: CustomerSignup) => PLANS[c.plan as PlanKey]?.name ?? c.plan
 const fmtDate = (d: Date) =>
   d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
+/** The page where a member pays, or null while online payment isn't set up (payments are then recorded by an admin). */
+export const payLinkFor = (customer: CustomerSignup) =>
+  authnetConfigured() ? `${APP_BASE_URL}/pay/${customer.id}` : null;
+
 /** Sent right after signup, so the customer knows what happens next. */
 export async function notifyMembershipRequested(customer: CustomerSignup) {
+  const payLink = payLinkFor(customer);
   await sendEmail(
     customer.email,
     "We received your LumeraMD membership request",
     buildNotificationEmail({
       variant: "membership-requested",
       headline: "We Got Your Request",
-      message: `Thanks, ${customer.firstName}! Your ${planName(customer)} membership is waiting for its first payment. We'll email you as soon as it's active. You can check its status any time in your account.`,
-      ctaLabel: "View Your Account",
-      ctaUrl: `${APP_BASE_URL}/account/login`,
+      message: payLink
+        ? `Thanks, ${customer.firstName}! Your ${planName(customer)} membership starts as soon as your first payment goes through. If you haven't paid yet, you can do it any time with the button below.`
+        : `Thanks, ${customer.firstName}! Your ${planName(customer)} membership is waiting for its first payment. We'll email you as soon as it's active. You can check its status any time in your account.`,
+      ctaLabel: payLink ? "Pay Now" : "View Your Account",
+      ctaUrl: payLink ?? `${APP_BASE_URL}/account/login`,
       logoWhiteUrl: LOGO_WHITE_URL,
     }),
   );
@@ -60,15 +68,36 @@ export async function notifyMembershipActive(
 }
 
 export async function notifyMembershipPastDue(customer: CustomerSignup) {
+  const payLink = payLinkFor(customer);
   await sendEmail(
     customer.email,
     "Your LumeraMD membership payment is overdue",
     buildNotificationEmail({
       variant: "membership-alert",
       headline: "Payment Overdue",
-      message: `We haven't received this month's payment for your ${planName(customer)} membership, so your member discount is paused. Contact us to get back on track and it comes right back.`,
-      ctaLabel: "View Your Account",
-      ctaUrl: `${APP_BASE_URL}/account/login`,
+      message: payLink
+        ? `We couldn't take this month's payment for your ${planName(customer)} membership, so your member discount is paused. Pay with a current card below and it comes right back.`
+        : `We haven't received this month's payment for your ${planName(customer)} membership, so your member discount is paused. Contact us to get back on track and it comes right back.`,
+      ctaLabel: payLink ? "Pay Now" : "View Your Account",
+      ctaUrl: payLink ?? `${APP_BASE_URL}/account/login`,
+      logoWhiteUrl: LOGO_WHITE_URL,
+    }),
+  );
+}
+
+/** Sent when a sales rep is approved: their Premium membership starts with the first payment. */
+export async function notifyRepPaymentDue(customer: CustomerSignup) {
+  const payLink = payLinkFor(customer);
+  if (!payLink) return;
+  await sendEmail(
+    customer.email,
+    "Activate your LumeraMD Premium membership",
+    buildNotificationEmail({
+      variant: "membership-requested",
+      headline: "One Last Step",
+      message: `You're approved, ${customer.firstName}! Your ${planName(customer)} membership (${PLANS[customer.plan as PlanKey] ? `$${PLANS[customer.plan as PlanKey].monthlyPrice} per month` : "monthly"}) switches on your member benefits and override commissions as soon as your first payment goes through.`,
+      ctaLabel: "Pay & Activate",
+      ctaUrl: payLink,
       logoWhiteUrl: LOGO_WHITE_URL,
     }),
   );

@@ -4,6 +4,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { EMAIL_RE, resolveReferrerId } from "@/lib/signup";
 import { PLANS, isCustomerPlanKey } from "@/lib/membership/plans";
 import { notifyMembershipRequested } from "@/lib/email/membership";
+import { authnetConfigured } from "@/lib/authnet/client";
 
 // Records a customer's chosen membership as pending_payment. Recurring billing is what activates
 // it, so nothing is charged or granted here.
@@ -84,5 +85,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, signup: { id: signup.id } });
+  // With online payment set up the form sends them straight on to pay; otherwise an admin records it.
+  return NextResponse.json({
+    ok: true,
+    signup: { id: signup.id },
+    payUrl: authnetConfigured() ? `/pay/${signup.id}` : null,
+  });
 }

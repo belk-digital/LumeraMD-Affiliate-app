@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Affiliate, AffiliateSettings } from "@/generated/prisma/client";
 import { createNotification } from "@/lib/notifications/create";
+import { pauseRepBilling } from "@/lib/authnet/repBilling";
 import { notifyActivityPassed, notifyActivitySuspended, notifyActivityWarning } from "@/lib/email/activity";
 
 // The 90-day activity cycle. Every affiliate has a cycle (start and end). By the end of it they
@@ -197,6 +198,7 @@ export async function processActivityCycles(now = new Date(), opts: { sendEmail?
             },
           });
           result.suspended += 1;
+          for (const warning of await pauseRepBilling(a).catch(() => [])) result.errors.push(`${a.userEmail}: ${warning}`);
           await createNotification(a.id, {
             type: "activity_suspended",
             title: "Your account was suspended",

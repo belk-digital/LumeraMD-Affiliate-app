@@ -4,6 +4,7 @@ import { CUSTOMER_PLANS, PLANS, TEST_KIT_PRICE, type PlanKey } from "@/lib/membe
 import Icon from "@/components/Icon";
 import AccountShell from "../AccountShell";
 import { affiliateIdFor } from "@/lib/customers/crossLinks";
+import { authnetConfigured } from "@/lib/authnet/client";
 import { Badge, ButtonLink, Card, DataTable, MEMBERSHIP_LABEL, MEMBERSHIP_TONE, Page, PageHeader, fmtDate, fmtDateLong, usd } from "../ui";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export default async function MembershipPage() {
     take: 12,
   });
   const currentIndex = CUSTOMER_PLANS.findIndex((p) => p.key === customer.plan);
+  const payLink = authnetConfigured() ? `/pay/${customer.id}` : null;
 
   return (
     <AccountShell
@@ -52,6 +54,16 @@ export default async function MembershipPage() {
               <div className="flex justify-between gap-3"><dt>Cancelled</dt><dd className="font-medium text-ink">{fmtDateLong(customer.cancelledAt)}</dd></div>
             )}
           </dl>
+          {payLink && (customer.status === "pending_payment" || customer.status === "past_due") && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-primary-light/60 px-4 py-3">
+              <p className="text-sm text-ink/75">
+                {customer.status === "past_due"
+                  ? "Your last payment didn't go through. Pay with a current card to turn your benefits back on."
+                  : "Your membership starts as soon as your first payment goes through."}
+              </p>
+              <ButtonLink href={payLink}>Pay now</ButtonLink>
+            </div>
+          )}
           {plan && (
             <ul className="mt-5 grid gap-2.5 text-sm text-ink/80 sm:grid-cols-2">
               {plan.benefits.map((b) => (

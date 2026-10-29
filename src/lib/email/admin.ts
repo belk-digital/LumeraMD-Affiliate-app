@@ -11,7 +11,8 @@ const LOGO_WHITE_URL = `${APP_BASE_URL}/lumera-logo-white.png`;
 // one-click approve link on purpose: an email link that changes data can be triggered by anyone
 // who gets hold of the email, so approval always happens after signing in to the dashboard.
 
-const SIGNUPS_URL = `${APP_BASE_URL}/lumera-ops/signups`;
+const REPS_URL = `${APP_BASE_URL}/lumera-ops/signups/sales-reps`;
+const MEMBERS_URL = `${APP_BASE_URL}/lumera-ops/signups/customers`;
 
 /** A new sales rep application is waiting for approval. */
 export async function notifyAdminNewSalesRep(rep: {
@@ -30,7 +31,7 @@ export async function notifyAdminNewSalesRep(rep: {
       headline: "New Affiliate Application",
       message: `${name} (${rep.email}) applied to become an affiliate on the ${rep.planName} plan${rep.referrer ? `, referred by ${rep.referrer}` : ""}. Review the application and approve or reject it in the admin dashboard.`,
       ctaLabel: "Review & Approve",
-      ctaUrl: SIGNUPS_URL,
+      ctaUrl: REPS_URL,
       logoWhiteUrl: LOGO_WHITE_URL,
     }),
   );
@@ -53,7 +54,7 @@ export async function notifyAdminNewMember(member: {
       headline: "New Membership Signup",
       message: `${name} (${member.email}) signed up for the ${member.planName} membership${member.referrer ? `, referred by ${member.referrer}` : ""}. Open the admin dashboard to record their first payment, or grant free access if you know them.`,
       ctaLabel: "Open Signups",
-      ctaUrl: SIGNUPS_URL,
+      ctaUrl: MEMBERS_URL,
       logoWhiteUrl: LOGO_WHITE_URL,
     }),
   );

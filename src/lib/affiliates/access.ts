@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { getAffiliateSession } from "@/lib/affiliates/session";
+import { getAffiliateSession, getInactiveAffiliate } from "@/lib/affiliates/session";
 import { getAdminSession } from "@/lib/admin/session";
 
-/** Affiliates can see their own dashboard; admins can see any. */
+/** Affiliates can see their own dashboard while approved; admins can see any. */
 export async function hasAffiliateAccess(affiliateId: string) {
   const session = await getAffiliateSession();
   if (session?.affiliateId === affiliateId) return true;
@@ -15,5 +15,7 @@ export async function requireAffiliateAccess(affiliateId: string) {
 
   const session = await getAffiliateSession();
   if (session) redirect(`/affiliates/dashboard/${session.affiliateId}`);
+  // Still holding a sign-in, but suspended since: say so instead of dropping them on the login form.
+  if (await getInactiveAffiliate()) redirect("/affiliates/suspended");
   redirect("/login");
 }

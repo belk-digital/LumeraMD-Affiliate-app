@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
 
 const COOKIE_NAME = "affiliate_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -59,10 +60,36 @@ export async function setAffiliateSessionCookie(session: AffiliateSession) {
   });
 }
 
-export async function getAffiliateSession(): Promise<AffiliateSession | null> {
+async function readSessionCookie(): Promise<AffiliateSession | null> {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;
   return token ? parseSessionToken(token) : null;
+}
+
+/**
+ * The signed-in affiliate, or null. A session lasts 30 days, so the account is checked every time:
+ * someone suspended (or removed) after they signed in is treated as signed out straight away,
+ * on pages and API calls alike.
+ */
+export async function getAffiliateSession(): Promise<AffiliateSession | null> {
+  const session = await readSessionCookie();
+  if (!session) return null;
+  const affiliate = await prisma.affiliate.findUnique({
+    where: { id: session.affiliateId },
+    select: { status: true },
+  });
+  return affiliate?.status === "approved" ? session : null;
+}
+
+/** Someone still holding a valid sign-in whose account is no longer approved, so they can be told why. */
+export async function getInactiveAffiliate() {
+  const session = await readSessionCookie();
+  if (!session) return null;
+  const affiliate = await prisma.affiliate.findUnique({
+    where: { id: session.affiliateId },
+    select: { id: true, status: true, suspendReason: true },
+  });
+  return affiliate && affiliate.status !== "approved" ? affiliate : null;
 }
 
 export async function clearAffiliateSessionCookie() {

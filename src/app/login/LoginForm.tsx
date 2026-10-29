@@ -28,8 +28,9 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
         </span>
         <p className="font-heading font-semibold text-ink">Check your inbox</p>
         <p className="mt-1 text-sm text-ink/60">
-          If <span className="font-medium text-ink">{email}</span> is an approved affiliate
-          account, we&apos;ve sent a login link. It expires in 15 minutes.
+          If <span className="font-medium text-ink">{email}</span> belongs to an affiliate
+          account, we&apos;ve sent you an email. An approved account gets a login link that
+          expires in 15 minutes; a suspended one gets an explanation and who to contact.
         </p>
       </div>
     );

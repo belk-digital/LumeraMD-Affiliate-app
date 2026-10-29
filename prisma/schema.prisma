@@ -310,6 +310,12 @@ model CustomerSignup {
   complimentaryNote     String?
   complimentaryBy       String?
 
+  // Authorize.net billing. The first month is paid on the hosted page; the card is then saved as a
+  // customer profile and a monthly subscription renews it. All empty for manual or free members.
+  authnetCustomerProfileId String?
+  authnetPaymentProfileId  String?
+  authnetSubscriptionId    String?              @unique
+
   payments              MembershipPayment[]
   loginTokens           CustomerLoginToken[]
   consultations         MemberConsultation[]

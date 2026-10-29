@@ -57,6 +57,27 @@ export async function notifyActivityPassed(a: Affiliate, nextEnd: Date) {
   );
 }
 
+/**
+ * Sent instead of a login link when a suspended affiliate asks to sign in, so they learn why nothing
+ * else is arriving. Always sent: it is the only way they find out. The login form answers the same
+ * way for every email, so this doesn't reveal who has an account.
+ */
+export async function notifySuspendedLoginAttempt(a: Pick<Affiliate, "userEmail" | "suspendReason">) {
+  const inactivity = a.suspendReason?.startsWith("Inactive") ?? false;
+  await sendEmail(
+    a.userEmail,
+    "Your LumeraMD affiliate account is suspended",
+    buildNotificationEmail({
+      variant: "membership-alert",
+      headline: "Account Suspended",
+      message: `Someone asked to sign in to this affiliate account, but it is currently suspended${inactivity ? " because the activity requirement wasn't met for the last cycle" : ""}, so we haven't sent a login link. Contact ${OPS_EMAIL} and we'll tell you what's needed to reactivate it. If this wasn't you, you can ignore this email.`,
+      ctaLabel: "Contact Support",
+      ctaUrl: `mailto:${OPS_EMAIL}`,
+      logoWhiteUrl: LOGO_WHITE_URL,
+    }),
+  );
+}
+
 /** Always sent (even with notifications off): losing access is something the person must be told. */
 export async function notifyActivitySuspended(
   a: Affiliate,
