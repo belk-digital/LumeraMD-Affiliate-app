@@ -6,6 +6,7 @@ import { createDiscountCode, deleteDiscountCodeByString } from "@/lib/shopify/cl
 import { attributeOrder } from "@/lib/affiliates/commission";
 import { awardMembershipPoints } from "@/lib/wallet/service";
 import { cancelSubscription } from "@/lib/authnet/client";
+import { emitPortalEvent } from "@/lib/portal/events";
 import {
   notifyMembershipActive,
   notifyMembershipCancelled,
@@ -231,6 +232,18 @@ export async function recordMembershipPayment(
     warnings.push("The payment was recorded, but awarding wallet points failed.");
   }
 
+  await emitPortalEvent("membership.payment_succeeded", customer.id, {
+    payment: {
+      id: payment.id,
+      amount: payment.amount,
+      currency: "USD",
+      paid_at: payment.createdAt.toISOString(),
+      period_start: payment.periodStart.toISOString(),
+      period_end: payment.periodEnd.toISOString(),
+      first_payment: firstActivation,
+    },
+  });
+
   return { customer: discount.customer, payment, duplicate: false, firstActivation, warnings };
 }
 
@@ -303,6 +316,7 @@ export async function grantComplimentary(
   } catch (err) {
     console.error("Membership email failed", err);
   }
+  await emitPortalEvent("membership.complimentary_granted", customer.id);
   return { customer: discount.customer, warnings };
 }
 
@@ -350,6 +364,7 @@ export async function cancelMembership(customerId: string, opts: LifecycleOption
       console.error("Membership email failed", err);
     }
   }
+  await emitPortalEvent("membership.cancelled", customer.id);
   return {
     customer: discount.customer,
     warnings: [...(discount.error ? [discount.error] : []), ...billingWarnings],
@@ -418,6 +433,7 @@ export async function processMembershipLifecycle(opts: LifecycleOptions = {}, no
     });
     if (res.count === 0) continue;
     markedPastDue += 1;
+    await emitPortalEvent("membership.expired", customer.id);
     const fresh = await getCustomer(customer.id);
     // A suspended rep can't use the program, so don't ask them to pay for it; reactivation sorts out billing.
     if (fresh.plan === "agent") {

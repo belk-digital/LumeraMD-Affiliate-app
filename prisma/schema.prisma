@@ -538,3 +538,37 @@ model MemberConsultation {
   @@index([customerId, occurredAt])
   @@map("member_consultations")
 }
+
+// Outgoing membership notifications for the client's customer portal. One row per event, kept so a
+// delivery that fails (portal down, bad response) can be retried and so there is a record of what was sent.
+model PortalEvent {
+  id            String    @id @default(cuid())
+  type          String
+  customerId    String
+  payload       Json
+  status        String    @default("pending") // pending | delivered | failed (gave up)
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  lastError     String?
+  deliveredAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([customerId])
+  @@map("portal_events")
+}
+
+// API keys for the customer portal's read API. Only a SHA-256 hash is stored: the key itself is shown
+// once, when an admin creates it, and cannot be recovered afterwards. Revoked keys stay for the record.
+model PortalApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  prefix     String    // first characters, so a key can be recognised in the list
+  keyHash    String    @unique
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  @@map("portal_api_keys")
+}

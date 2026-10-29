@@ -69,6 +69,12 @@ function buildMainNav({
       icon: "chart",
       isActive: (p) => p.startsWith("/lumera-ops/reports"),
     },
+    {
+      href: "/lumera-ops/portal",
+      label: "API & webhooks",
+      icon: "link",
+      isActive: (p) => p.startsWith("/lumera-ops/portal"),
+    },
   ];
 }
 

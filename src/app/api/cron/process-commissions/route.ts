@@ -3,6 +3,7 @@ import { processPendingConversions } from "@/lib/affiliates/processPending";
 import { processMembershipLifecycle } from "@/lib/membership/lifecycle";
 import { processWalletRedemptions } from "@/lib/wallet/service";
 import { processActivityCycles } from "@/lib/affiliates/activity";
+import { retryPortalEvents } from "@/lib/portal/events";
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
@@ -17,5 +18,7 @@ export async function GET(req: NextRequest) {
   const wallet = await processWalletRedemptions();
   // The 90-day activity cycle: roll over those who met it, warn and suspend those who did not.
   const activity = await processActivityCycles();
-  return NextResponse.json({ ok: true, ...result, memberships, wallet, activity });
+  // Notifications to the customer portal that failed earlier are tried again.
+  const portal = await retryPortalEvents();
+  return NextResponse.json({ ok: true, ...result, memberships, wallet, activity, portal });
 }
