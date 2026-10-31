@@ -6,6 +6,7 @@ import { BookOpen, Check, Copy, KeyRound, Plus, Search, Webhook } from "lucide-r
 import { Backdrop, Notice, inputClass, useCopy } from "../signups/_components/kit";
 import Deliveries, { type EventRow } from "./Deliveries";
 import TestPing from "./TestPing";
+import SsoCard, { type SsoInfo } from "./SsoCard";
 
 export interface KeyRow {
   id: string;
@@ -53,6 +54,7 @@ export default function PortalClient({
   webhook,
   docsUrl,
   baseUrl,
+  sso,
 }: {
   keys: KeyRow[];
   events: EventRow[];
@@ -62,6 +64,7 @@ export default function PortalClient({
   webhook: WebhookInfo;
   docsUrl: string;
   baseUrl: string;
+  sso: SsoInfo;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -190,6 +193,8 @@ export default function PortalClient({
           </table>
         </div>
       </div>
+
+      <SsoCard sso={sso} />
 
       <Deliveries events={events} total={eventTotal} query={eventQuery} pageSize={pageSize} configured={webhook.configured} />
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { setCustomerSessionCookie } from "@/lib/customers/session";
+import { safeOidcNext } from "@/lib/oidc/next";
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
@@ -25,5 +26,6 @@ export async function GET(req: NextRequest) {
 
   await setCustomerSessionCookie({ customerId: customer.id, email: customer.email });
 
-  return NextResponse.redirect(`${origin}/account`);
+  // A sign-in that started on another site carries on from where it left off; otherwise the account page.
+  return NextResponse.redirect(`${origin}${safeOidcNext(record.next) ?? "/account"}`);
 }

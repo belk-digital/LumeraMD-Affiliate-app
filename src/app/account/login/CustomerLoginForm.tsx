@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import Icon from "@/components/Icon";
 
-export default function CustomerLoginForm({ initialError }: { initialError?: string }) {
+export default function CustomerLoginForm({ initialError, next }: { initialError?: string; next?: string }) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -18,7 +18,7 @@ export default function CustomerLoginForm({ initialError }: { initialError?: str
       const res = await fetch("/api/customers/auth/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, next }),
       });
       if (res.status === 429) {
         const data = await res.json().catch(() => ({}));
@@ -42,6 +42,11 @@ export default function CustomerLoginForm({ initialError }: { initialError?: str
           If <span className="font-medium text-ink">{email}</span> has a LumeraMD membership,
           we&apos;ve sent a login link. It expires in 15 minutes.
         </p>
+        {next && (
+          <p className="mt-2 text-sm text-ink/60">
+            Open the link in this same browser, and we&apos;ll take you straight back to where you were signing in.
+          </p>
+        )}
       </div>
     );
   }

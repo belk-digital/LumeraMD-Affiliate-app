@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import CodeBlock from "./CodeBlock";
+import { oidcClientId } from "@/lib/oidc/config";
 
 // Public documentation for the customer portal integration. It holds no secrets: keys and signing
 // secrets are given to the client privately. Kept out of search results.
@@ -101,8 +102,37 @@ const SECTIONS = [
   { id: "webhooks", label: "Webhooks" },
   { id: "verifying", label: "Verifying a webhook" },
   { id: "retries", label: "Retries and duplicates" },
+  { id: "sso", label: "Single sign-on" },
   { id: "not-yet", label: "Not covered yet" },
 ];
+
+const SSO_AUTHORIZE = `GET ${BASE}/oauth/authorize
+  ?response_type=code
+  &client_id=${oidcClientId()}
+  &redirect_uri=https%3A%2F%2Fportal.lumeramd.com%2Fauth%2Flumera%2Fcallback
+  &scope=openid%20email
+  &state=<random value you keep>
+  &nonce=<random value you keep>
+  &code_challenge=<base64url(SHA-256(code_verifier))>
+  &code_challenge_method=S256`;
+
+const SSO_TOKEN = `curl -X POST ${BASE}/oauth/token \\
+  -u "${oidcClientId()}:$LUMERA_CLIENT_SECRET" \\
+  -d grant_type=authorization_code \\
+  -d code=<the code you received> \\
+  -d redirect_uri=https://portal.lumeramd.com/auth/lumera/callback \\
+  -d code_verifier=<the verifier you kept>`;
+
+const SSO_ID_TOKEN = `{
+  "iss": "${BASE}",
+  "aud": "${oidcClientId()}",
+  "sub": "cmvt3us03000106lc7vihv9rx",
+  "email": "jane@example.com",
+  "email_verified": true,
+  "nonce": "<the nonce you sent>",
+  "iat": 1793250000,
+  "exp": 1793250600
+}`;
 
 function H2({ id, children }: { id: string; children: React.ReactNode }) {
   return (
@@ -366,6 +396,119 @@ export default function DevelopersPage() {
               <li>
                 <strong>Expect duplicates and out-of-order delivery.</strong> De-duplicate on <Code>id</Code>. When two events
                 for one member arrive in the wrong order, trust the one with the later <Code>data.member.updated_at</Code>.
+              </li>
+            </ul>
+          </section>
+
+          <section className="space-y-4">
+            <H2 id="sso">Single sign-on (&ldquo;Sign in with LumeraMD&rdquo;)</H2>
+            <P>
+              Members sign in to their LumeraMD membership with an emailed one-time link. Your portal can offer &ldquo;Sign in with
+              LumeraMD&rdquo; so a member does not need a second password: we are an OpenID Connect provider, using the
+              authorization code flow with PKCE. It is for customers with a membership. Sales reps have a separate login and are not
+              included.
+            </P>
+            <Table
+              head={["Setting", "Value"]}
+              rows={[
+                ["Issuer", <Code key="v">{BASE}</Code>],
+                ["Discovery address", <Code key="v">{BASE}/.well-known/openid-configuration</Code>],
+                ["Client ID", <Code key="v">{oidcClientId()}</Code>],
+                ["Client secret", "Given to you once, privately. We keep only a hash of it, so it can't be looked up."],
+                [
+                  "Token authentication",
+                  <>
+                    <Code>client_secret_basic</Code> (the secret in an <Code>Authorization: Basic</Code> header). <Code>client_secret_post</Code> also works.
+                  </>,
+                ],
+                ["PKCE", <>Required: <Code>S256</Code> only.</>],
+                ["Scopes", <><Code>openid</Code> (required), <Code>email</Code>, <Code>profile</Code>.</>],
+                ["ID token signature", <><Code>RS256</Code>. Keys are published at <Code>{BASE}/.well-known/jwks.json</Code>.</>],
+                ["Return addresses", "Only the addresses we registered for you, matched exactly."],
+              ]}
+            />
+
+            <h3 className="pt-2 font-heading text-lg font-bold text-ink">The flow</h3>
+            <ol className="list-decimal space-y-1.5 pl-5 text-ink/75">
+              <li>
+                Your portal sends the member&apos;s browser to our authorization address, with a fresh <Code>state</Code>,{" "}
+                <Code>nonce</Code> and PKCE challenge.
+              </li>
+              <li>
+                If they are not signed in to LumeraMD they enter their email and open the link we send them. We then bring them
+                straight back to finish. If they already are, they come straight back with no extra step.
+              </li>
+              <li>
+                We redirect to your return address with a one-time <Code>code</Code> (valid for about one minute), your{" "}
+                <Code>state</Code>, and <Code>iss</Code>. Check <Code>state</Code> and <Code>iss</Code>.
+              </li>
+              <li>
+                Your <strong>server</strong> swaps the code for tokens. Check the ID token&apos;s signature, <Code>iss</Code>,{" "}
+                <Code>aud</Code>, <Code>exp</Code> and <Code>nonce</Code>, then sign the member in to your portal.
+              </li>
+            </ol>
+            <CodeBlock samples={[{ label: "1. Send the member here", code: SSO_AUTHORIZE }]} />
+            <CodeBlock samples={[{ label: "4. Swap the code", code: SSO_TOKEN }]} />
+
+            <h3 className="pt-2 font-heading text-lg font-bold text-ink">The ID token</h3>
+            <CodeBlock samples={[{ label: "Claims", code: SSO_ID_TOKEN }]} />
+            <Table
+              head={["Claim", "Meaning"]}
+              rows={[
+                [<Code key="c">sub</Code>, <>The member&apos;s id: the same <Code>id</Code> the membership API returns. Save it.</>],
+                [<Code key="c">email</Code>, "The member's email. It is verified: they proved they control it by opening our emailed link."],
+                [<Code key="c">email_verified</Code>, <>Always <Code>true</Code>.</>],
+                [<Code key="c">name</Code>, <>With the <Code>profile</Code> scope: also <Code>given_name</Code> and <Code>family_name</Code>.</>],
+                [<Code key="c">nonce</Code>, "The value you sent, if any."],
+                [<Code key="c">exp</Code>, "The token is valid for 10 minutes. Use it once, to sign the member in."],
+              ]}
+            />
+            <ul className="list-disc space-y-1.5 pl-5 text-ink/75">
+              <li>
+                <strong>The token says who the member is, not what they have.</strong> It carries no plan, tier or discount. Look
+                those up through the membership API, which stays the source of truth.
+              </li>
+              <li>
+                A member who cancels and later rejoins gets a new membership record, so their <Code>sub</Code> can change. Match on{" "}
+                <Code>email</Code> as well, as you already do for the API.
+              </li>
+              <li>
+                The access token is for the <Code>userinfo</Code> address only (<Code>{BASE}/oauth/userinfo</Code>), which returns the
+                same claims. It lasts an hour. There are no refresh tokens.
+              </li>
+              <li>
+                If a code is presented twice we reject it and cancel the tokens it produced, so keep each code to a single exchange.
+              </li>
+            </ul>
+
+            <h3 className="pt-2 font-heading text-lg font-bold text-ink">Signing out</h3>
+            <P>
+              Signing out of your portal does not sign the member out of LumeraMD by itself. To do both, send their browser to{" "}
+              <Code>{BASE}/oauth/logout</Code> with <Code>id_token_hint</Code> (the ID token we issued) and, if you want them returned to
+              your portal, <Code>post_logout_redirect_uri</Code> and <Code>state</Code>. The return address must be one we registered for
+              you. Without one, the member sees a &ldquo;signed out&rdquo; page on our site. We do not notify you when a member signs out
+              on our side (there is no back-channel logout).
+            </P>
+
+            <h3 className="pt-2 font-heading text-lg font-bold text-ink">Good to know</h3>
+            <ul className="list-disc space-y-1.5 pl-5 text-ink/75">
+              <li>
+                <strong>The emailed link has to be opened in the same browser</strong> that started the sign-in, so your
+                <Code>state</Code> and PKCE verifier are still there when the member comes back. If they open it on another device
+                they are signed in to LumeraMD, but your portal will need them to start again. Showing a clear message and a
+                &ldquo;try again&rdquo; button is enough.
+              </li>
+              <li>
+                <Code>prompt=none</Code> is supported: if the member is not signed in you get <Code>error=login_required</Code>.
+              </li>
+              <li>
+                Errors come back to your return address as <Code>error</Code> and <Code>error_description</Code>, with your{" "}
+                <Code>state</Code>. A request with an unknown client or an unregistered return address is never redirected: the
+                member sees an error page on our site instead.
+              </li>
+              <li>
+                Testing: tell us the email of a test member and we will make sure it can sign in. They sign in with the emailed link
+                like anyone else.
               </li>
             </ul>
           </section>

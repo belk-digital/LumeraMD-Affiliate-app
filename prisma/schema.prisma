@@ -353,6 +353,8 @@ model CustomerLoginToken {
   token      String         @unique
   expiresAt  DateTime
   usedAt     DateTime?
+  // Where to send the member after the link is used (only ever a path on this site, e.g. a single sign-on request).
+  next       String?
   createdAt  DateTime       @default(now())
 
   @@map("customer_login_tokens")
@@ -571,4 +573,26 @@ model PortalApiKey {
   revokedAt  DateTime?
 
   @@map("portal_api_keys")
+}
+
+// Single sign-on (OpenID Connect): one row per sign-in. The one-time code and the access token are stored
+// only as hashes. A code works once, for about a minute; the access token lasts an hour.
+model OidcGrant {
+  id              String    @id @default(cuid())
+  codeHash        String    @unique
+  clientId        String
+  customerId      String    // the member the sign-in is for (the "sub" claim)
+  email           String
+  redirectUri     String
+  codeChallenge   String
+  nonce           String?
+  scope           String
+  codeExpiresAt   DateTime
+  codeUsedAt      DateTime?
+  accessHash      String?   @unique
+  accessExpiresAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([createdAt])
+  @@map("oidc_grants")
 }

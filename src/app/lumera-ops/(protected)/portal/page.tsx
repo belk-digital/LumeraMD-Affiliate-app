@@ -2,6 +2,14 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { requireAdminPage } from "@/lib/admin/requireAdmin";
 import { portalWebhookConfigured } from "@/lib/portal/events";
+import {
+  oidcClientId,
+  oidcConfigured,
+  oidcIssuer,
+  oidcMissing,
+  oidcPostLogoutUris,
+  oidcRedirectUris,
+} from "@/lib/oidc/config";
 import { shortDate } from "../signups/_components/fmt";
 import PortalClient, { type KeyRow } from "./PortalClient";
 import type { EventRow } from "./Deliveries";
@@ -96,6 +104,15 @@ export default async function PortalPage({
       }}
       docsUrl={`${APP_BASE_URL}/developers`}
       baseUrl={APP_BASE_URL || "https://lumeramd.biz"}
+      sso={{
+        configured: oidcConfigured(),
+        missing: oidcMissing(),
+        issuer: oidcIssuer(),
+        discoveryUrl: `${oidcIssuer()}/.well-known/openid-configuration`,
+        clientId: oidcClientId(),
+        redirectUris: oidcRedirectUris(),
+        logoutUris: oidcPostLogoutUris().length,
+      }}
     />
   );
 }

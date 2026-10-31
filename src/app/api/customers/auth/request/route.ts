@@ -4,9 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { sendCustomerLoginEmail } from "@/lib/email/membership";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { findMembershipByEmail } from "@/lib/customers/lookup";
+import { safeOidcNext } from "@/lib/oidc/next";
 
 export async function POST(req: NextRequest) {
-  const { email } = await req.json().catch(() => ({}));
+  const { email, next } = await req.json().catch(() => ({}));
 
   // Same response whether or not the email has a membership, so this can't be used to discover
   // who is a customer.
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
       customerId: customer.id,
       token,
       expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      next: safeOidcNext(next),
     },
   });
 
