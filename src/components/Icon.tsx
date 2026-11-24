@@ -58,6 +58,7 @@ const PATHS = {
   cart: ["M3 4h2l2.4 10.2a1 1 0 001 .8h8.9a1 1 0 001-.76L20 8H6M10 20h.01M17 20h.01"],
   dna: ["M7 3c0 6 10 6 10 12v6M17 3c0 6-10 6-10 12v6M8 7h8M8 17h8"],
   star: ["M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"],
+  tree: ["M10 3h4v4h-4zM3 17h4v4H3zM17 17h4v4h-4zM12 7v5M5 17v-5h14v5"],
 } as const;
 
 export type IconName = keyof typeof PATHS;

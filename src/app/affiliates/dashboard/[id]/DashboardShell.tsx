@@ -64,7 +64,14 @@ export default function DashboardShell({
       icon: "users",
       isActive: (p) => p.startsWith(`${base}/team`),
     },
+    {
+      href: `${base}/hierarchy`,
+      label: "Hierarchy",
+      icon: "tree",
+      isActive: (p) => p.startsWith(`${base}/hierarchy`),
+    },
   ];
+  // Hierarchy also shows the uplines above an agent, so it stays even when Team is hidden.
   const mainNav = showTeam ? allMainNav : allMainNav.filter((item) => item.label !== "Team");
   const bottomNav: NavItem[] = [
     ...(hasMembership

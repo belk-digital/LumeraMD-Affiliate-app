@@ -45,6 +45,12 @@ function buildMainNav({
       isActive: (p) => p.startsWith("/lumera-ops/affiliates"),
     },
     {
+      href: "/lumera-ops/hierarchy",
+      label: "Hierarchy",
+      icon: "tree",
+      isActive: (p) => p.startsWith("/lumera-ops/hierarchy"),
+    },
+    {
       href: "/lumera-ops/conversions",
       label: "Conversions",
       icon: "chart",
