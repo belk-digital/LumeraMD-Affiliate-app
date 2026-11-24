@@ -1,5 +1,7 @@
 "use client";
 
+import PhoneField from "@/components/PhoneField";
+import { cleanName } from "@/lib/fields";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -41,20 +43,22 @@ export default function ProfileForm(p: { firstName: string; lastName: string; ph
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block text-sm text-ink/70">
           First name
-          <input className={`${input} mt-1`} value={firstName} onChange={(e) => setFirstName(e.target.value)} required maxLength={80} />
+          <input className={`${input} mt-1`} value={firstName} onChange={(e) => setFirstName(cleanName(e.target.value))} required maxLength={60} />
         </label>
         <label className="block text-sm text-ink/70">
           Last name
-          <input className={`${input} mt-1`} value={lastName} onChange={(e) => setLastName(e.target.value)} required maxLength={80} />
+          <input className={`${input} mt-1`} value={lastName} onChange={(e) => setLastName(cleanName(e.target.value))} required maxLength={60} />
         </label>
         <label className="block text-sm text-ink/70">
           Email
           <input className={`${input} mt-1`} value={p.email} disabled readOnly />
         </label>
-        <label className="block text-sm text-ink/70">
+        <div className="block text-sm text-ink/70">
           Phone
-          <input className={`${input} mt-1`} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={40} />
-        </label>
+          <div className="mt-1">
+            <PhoneField initialValue={p.phone} inputClass={input} onChange={setPhone} />
+          </div>
+        </div>
       </div>
       <p className="text-xs text-ink/45">Your email is how you sign in, so it can&apos;t be changed here. Contact us if you need to change it.</p>
       <div className="flex items-center gap-3">

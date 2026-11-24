@@ -1,5 +1,6 @@
 "use client";
 
+import { cleanName, cleanEmail } from "@/lib/fields";
 import Link from "next/link";
 import { useState } from "react";
 import Icon from "@/components/Icon";
@@ -84,7 +85,9 @@ export default function CustomerForm({ referralSlug }: { referralSlug?: string }
             placeholder="John"
             className={inputClass}
             value={form.firstName}
-            onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+            maxLength={60}
+            autoComplete="given-name"
+            onChange={(e) => setForm({ ...form, firstName: cleanName(e.target.value) })}
           />
         </div>
         <div>
@@ -94,7 +97,9 @@ export default function CustomerForm({ referralSlug }: { referralSlug?: string }
             placeholder="Doe"
             className={inputClass}
             value={form.lastName}
-            onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+            maxLength={60}
+            autoComplete="family-name"
+            onChange={(e) => setForm({ ...form, lastName: cleanName(e.target.value) })}
           />
         </div>
       </div>
@@ -106,7 +111,9 @@ export default function CustomerForm({ referralSlug }: { referralSlug?: string }
           placeholder="john@example.com"
           className={inputClass}
           value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          maxLength={254}
+          autoComplete="email"
+          onChange={(e) => setForm({ ...form, email: cleanEmail(e.target.value) })}
         />
       </div>
       <div>

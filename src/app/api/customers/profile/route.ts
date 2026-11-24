@@ -1,3 +1,5 @@
+import { isValidName, NAME_ERROR } from "@/lib/fields";
+import { validatePhoneString } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCustomerSession } from "@/lib/customers/session";
@@ -21,11 +23,12 @@ export async function PATCH(req: NextRequest) {
   if (!firstName || !lastName) {
     return NextResponse.json({ error: "First and last name are required." }, { status: 400 });
   }
-  if (firstName.length > 80 || lastName.length > 80 || phone.length > 40) {
-    return NextResponse.json({ error: "One of the fields is too long." }, { status: 400 });
+  if (!isValidName(firstName) || !isValidName(lastName)) {
+    return NextResponse.json({ error: NAME_ERROR }, { status: 400 });
   }
-  if (phone && !/^[0-9+()\-.\s]{7,40}$/.test(phone)) {
-    return NextResponse.json({ error: "Enter a valid phone number." }, { status: 400 });
+  const phoneError = validatePhoneString(phone, { required: false });
+  if (phoneError) {
+    return NextResponse.json({ error: phoneError }, { status: 400 });
   }
 
   await prisma.customerSignup.update({

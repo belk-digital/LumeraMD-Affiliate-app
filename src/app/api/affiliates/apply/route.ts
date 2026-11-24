@@ -1,3 +1,4 @@
+import { isValidName, NAME_ERROR } from "@/lib/fields";
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -32,17 +33,20 @@ export async function POST(req: NextRequest) {
     return typeof v === "string" ? v : "";
   };
 
-  const firstName = str("firstName").trim();
-  const lastName = str("lastName").trim();
+  const firstName = str("firstName").trim().slice(0, 100);
+  const lastName = str("lastName").trim().slice(0, 100);
   const email = str("email").trim();
-  const websiteUrl = str("websiteUrl").trim();
-  const promotionMethods = str("promotionMethods").trim();
+  const websiteUrl = str("websiteUrl").trim().slice(0, 200);
+  const promotionMethods = str("promotionMethods").trim().slice(0, 1000);
   const agreedToTerms = str("agreedToTerms") === "true";
   const referralSlug = str("referralSlug") || undefined;
   const w9File = form.get("w9File");
 
   if (!firstName || !lastName) {
     return NextResponse.json({ error: "Please enter your first and last name." }, { status: 400 });
+  }
+  if (!isValidName(firstName) || !isValidName(lastName)) {
+    return NextResponse.json({ error: NAME_ERROR }, { status: 400 });
   }
   if (!email || !EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Please enter a valid email." }, { status: 400 });

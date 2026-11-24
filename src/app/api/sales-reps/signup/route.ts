@@ -1,3 +1,5 @@
+import { isValidName, NAME_ERROR } from "@/lib/fields";
+import { validatePhoneString } from "@/lib/phone";
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -55,9 +57,12 @@ export async function POST(req: NextRequest) {
   if (!lastName) {
     return NextResponse.json({ error: "Please enter your last name." }, { status: 400 });
   }
-  const phoneDigits = phone.replace(/\D/g, "");
-  if (phoneDigits.length < 7 || phoneDigits.length > 15) {
-    return NextResponse.json({ error: "Please enter a valid phone number." }, { status: 400 });
+  if (!isValidName(firstName) || !isValidName(lastName)) {
+    return NextResponse.json({ error: NAME_ERROR }, { status: 400 });
+  }
+  const phoneError = validatePhoneString(phone, { required: true });
+  if (phoneError) {
+    return NextResponse.json({ error: phoneError }, { status: 400 });
   }
   if (plan !== "agent") {
     return NextResponse.json({ error: "Please choose a plan." }, { status: 400 });

@@ -1,3 +1,5 @@
+import { isValidName, NAME_ERROR } from "@/lib/fields";
+import { validatePhoneString } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
@@ -26,8 +28,8 @@ export async function POST(req: NextRequest) {
   const str = (key: string, max = 200) =>
     typeof body[key] === "string" ? (body[key] as string).trim().slice(0, max) : "";
 
-  const firstName = str("firstName", 100);
-  const lastName = str("lastName", 100);
+  const firstName = str("firstName", 100).replace(/\s+/g, " ");
+  const lastName = str("lastName", 100).replace(/\s+/g, " ");
   const email = str("email");
   const phone = str("phone", 40);
   const plan = str("plan");
@@ -36,8 +38,15 @@ export async function POST(req: NextRequest) {
   if (!firstName || !lastName) {
     return NextResponse.json({ error: "Please enter your first and last name." }, { status: 400 });
   }
+  if (!isValidName(firstName) || !isValidName(lastName)) {
+    return NextResponse.json({ error: NAME_ERROR }, { status: 400 });
+  }
   if (!email || !EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Please enter a valid email." }, { status: 400 });
+  }
+  const phoneError = validatePhoneString(phone, { required: false });
+  if (phoneError) {
+    return NextResponse.json({ error: phoneError }, { status: 400 });
   }
   if (!isCustomerPlanKey(plan)) {
     return NextResponse.json({ error: "Please choose a membership plan." }, { status: 400 });
