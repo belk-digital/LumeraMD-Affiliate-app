@@ -1,6 +1,6 @@
 /* Org-chart connectors: each <li> draws the line above it, each nested <ul> the line down to it. */
 .org-tree {
-  --org-line: #cfd7e1;
+  --org-line: #3b82f6;
   text-align: center;
 }
 .org-tree ul {
@@ -32,12 +32,12 @@
   right: 50%;
   width: 50%;
   height: 16px;
-  border-top: 1px solid var(--org-line);
+  border-top: 2px solid var(--org-line);
 }
 .org-tree li::after {
   right: auto;
   left: 50%;
-  border-left: 1px solid var(--org-line);
+  border-left: 2px solid var(--org-line);
 }
 .org-tree > ul > li::before,
 .org-tree > ul > li::after {
@@ -54,7 +54,7 @@
   border: 0;
 }
 .org-tree li:last-child::before {
-  border-right: 1px solid var(--org-line);
+  border-right: 2px solid var(--org-line);
   border-radius: 0 6px 0 0;
 }
 .org-tree li:first-child::after {
@@ -66,5 +66,5 @@
   top: 0;
   left: 50%;
   height: 16px;
-  border-left: 1px solid var(--org-line);
+  border-left: 2px solid var(--org-line);
 }

@@ -7,6 +7,7 @@ export type NotificationType =
   | "commission_reversed"
   | "team_earning"
   | "recruit_joined"
+  | "team_moved"
   | "payout_requested"
   | "payout_approved"
   | "payout_paid"

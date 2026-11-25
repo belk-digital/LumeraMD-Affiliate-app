@@ -198,3 +198,42 @@ export async function notifyApplicationRejected(application: AffiliateApplicatio
     }),
   );
 }
+
+/** Sent when an admin moves an affiliate in the hierarchy: to the moved affiliate and to both sponsors. */
+export async function notifyAffiliateMoved(
+  recipient: Affiliate,
+  info: { role: "moved" | "gained" | "lost"; movedName: string; otherName: string | null },
+) {
+  if (!recipient.emailNotifications) return;
+  const copy = {
+    moved: {
+      subject: "Your team placement changed",
+      headline: "Your Team Placement Changed",
+      message: info.otherName
+        ? `An administrator moved you under ${info.otherName}. Your own team moves with you.`
+        : "An administrator moved you to the top level. Your own team moves with you.",
+    },
+    gained: {
+      subject: "Someone joined your team",
+      headline: "Someone Joined Your Team",
+      message: `An administrator moved ${info.movedName} (and their team) under you.`,
+    },
+    lost: {
+      subject: "Someone left your team",
+      headline: "Someone Left Your Team",
+      message: `An administrator moved ${info.movedName} (and their team) to a different team.`,
+    },
+  }[info.role];
+  await sendEmail(
+    recipient.userEmail,
+    copy.subject,
+    buildNotificationEmail({
+      variant: "referral",
+      headline: copy.headline,
+      message: copy.message + " Orders already recorded keep their commissions; team overrides on orders still pending follow the new structure.",
+      ctaLabel: "View Your Team",
+      ctaUrl: `${APP_BASE_URL}/affiliates/dashboard/${recipient.id}/team`,
+      logoWhiteUrl: LOGO_WHITE_URL,
+    }),
+  );
+}

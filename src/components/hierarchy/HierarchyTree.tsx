@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Building2, ChevronsDownUp, ChevronsUpDown, Maximize, Maximize2, Minimize2, Minus, Plus, Search, X } from "lucide-react";
 import Avatar from "@/components/Avatar";
@@ -49,6 +50,7 @@ function NodeCard({
   href,
   onSelect,
   picked,
+  dnd,
 }: {
   node: HierarchyNode;
   admin: boolean;
@@ -60,10 +62,25 @@ function NodeCard({
   /** In full screen a click selects the card (opens the overlay) instead of navigating. */
   onSelect?: () => void;
   picked: boolean;
+  /** Admin drag and drop: whether this card can be dragged, and how it reacts to a card dragged over it. */
+  dnd?: {
+    draggable: boolean;
+    over: "ok" | "no" | null;
+    dragging: boolean;
+    onDragStart: (e: React.DragEvent) => void;
+    onDragEnd: () => void;
+    onDragOver: (e: React.DragEvent) => void;
+    onDragLeave: () => void;
+    onDrop: (e: React.DragEvent) => void;
+  };
 }) {
   const isSelf = node.kind === "self";
   const isCompany = node.kind === "company";
-  const ring = picked
+  const ring = dnd?.over === "ok"
+    ? "border-emerald-500 ring-2 ring-emerald-400/60 bg-emerald-50"
+    : dnd?.over === "no"
+      ? "border-rose-300 ring-2 ring-rose-200 cursor-not-allowed"
+    : picked
     ? "border-primary ring-2 ring-primary/40"
     : isSelf
       ? "border-primary ring-2 ring-primary/20"
@@ -101,16 +118,27 @@ function NodeCard({
 
   return (
     <div
+      {...(dnd
+        ? {
+            "data-nodrag": true, // keeps the full-screen pan from grabbing a card
+            draggable: dnd.draggable,
+            onDragStart: dnd.onDragStart,
+            onDragEnd: dnd.onDragEnd,
+            onDragOver: dnd.onDragOver,
+            onDragLeave: dnd.onDragLeave,
+            onDrop: dnd.onDrop,
+          }
+        : {})}
       className={`relative w-40 rounded-lg border bg-white px-2.5 py-2 shadow-sm transition-opacity ${ring} ${
-        dim ? "opacity-40" : ""
-      }`}
+        dim || dnd?.dragging ? "opacity-40" : ""
+      } ${dnd?.draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       {onSelect ? (
-        <button type="button" onClick={onSelect} className="block w-full cursor-pointer text-left hover:opacity-80">
+        <button type="button" draggable={false} onClick={onSelect} className="block w-full cursor-pointer text-left hover:opacity-80">
           {body}
         </button>
       ) : href ? (
-        <Link href={href} className="block hover:opacity-80">
+        <Link href={href} draggable={false} className="block hover:opacity-80">
           {body}
         </Link>
       ) : (
@@ -244,6 +272,91 @@ export default function HierarchyTree({
   const [isFull, setIsFull] = useState(false);
   const [selected, setSelected] = useState<HierarchyNode | null>(null);
   const { parents, open, matches, depths } = useMemo(() => index(root, query), [root, query]);
+  const router = useRouter();
+
+  // Admin drag and drop: drop a card on another to move it (and its team) under that affiliate, or on the
+  // company card to make it top level.
+  const byId = useMemo(() => {
+    const nodes = new Map<string, HierarchyNode>();
+    const parentOf = new Map<string, string>();
+    (function walk(n: HierarchyNode) {
+      nodes.set(n.id, n);
+      n.children.forEach((c) => {
+        parentOf.set(c.id, n.id);
+        walk(c);
+      });
+    })(root);
+    return { nodes, parentOf };
+  }, [root]);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [pendingMove, setPendingMove] = useState<{ node: HierarchyNode; target: HierarchyNode } | null>(null);
+  const [moving, setMoving] = useState(false);
+  const [moveError, setMoveError] = useState("");
+
+  /** Whether the dragged card may be dropped on this one. Mirrors the server's rules. */
+  function canDrop(targetId: string) {
+    if (!dragId || dragId === targetId) return false;
+    const target = byId.nodes.get(targetId);
+    if (!target) return false;
+    if (target.kind !== "company" && target.status !== "approved") return false;
+    if (byId.parentOf.get(dragId) === targetId) return false; // already there
+    for (let c: string | undefined = targetId; c; c = byId.parentOf.get(c)) {
+      if (c === dragId) return false; // can't go under their own team
+    }
+    return true;
+  }
+
+  function dropOn(targetId: string) {
+    const node = dragId ? byId.nodes.get(dragId) : undefined;
+    const target = byId.nodes.get(targetId);
+    const ok = canDrop(targetId);
+    setDragId(null);
+    setOverId(null);
+    if (node && target && ok) {
+      setMoveError("");
+      setPendingMove({ node, target });
+    }
+  }
+
+  async function confirmMove() {
+    if (!pendingMove) return;
+    setMoving(true);
+    setMoveError("");
+    try {
+      const res = await fetch("/api/lumera-ops/hierarchy/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: pendingMove.node.id,
+          parentId: pendingMove.target.kind === "company" ? null : pendingMove.target.id,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMoveError(data.error ?? "Could not move this affiliate.");
+        return;
+      }
+      setPendingMove(null);
+      router.refresh();
+    } catch {
+      setMoveError("Network error. Please try again.");
+    } finally {
+      setMoving(false);
+    }
+  }
+
+  // Dragging near an edge of the canvas scrolls it, so far-away cards can be reached.
+  function autoScroll(e: React.DragEvent) {
+    const box = scrollRef.current;
+    if (!box) return;
+    const r = box.getBoundingClientRect();
+    const edge = 56;
+    if (e.clientX < r.left + edge) box.scrollLeft -= 18;
+    else if (e.clientX > r.right - edge) box.scrollLeft += 18;
+    if (e.clientY < r.top + edge) box.scrollTop -= 18;
+    else if (e.clientY > r.bottom - edge) box.scrollTop += 18;
+  }
 
   // Collapsed set starts from the depth limit; the user's toggles then override it.
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
@@ -402,6 +515,35 @@ export default function HierarchyTree({
           href={linkBase && node.kind !== "company" && !isFull ? `${linkBase}/${node.id}` : undefined}
           onSelect={isFull && node.kind !== "company" ? () => setSelected(node) : undefined}
           picked={isFull && selected?.id === node.id}
+          dnd={
+            admin
+              ? {
+                  draggable: node.kind === "member",
+                  dragging: dragId === node.id,
+                  over: dragId && overId === node.id ? (canDrop(node.id) ? "ok" : "no") : null,
+                  onDragStart: (e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", node.id);
+                    setDragId(node.id);
+                  },
+                  onDragEnd: () => {
+                    setDragId(null);
+                    setOverId(null);
+                  },
+                  onDragOver: (e) => {
+                    if (!dragId) return;
+                    e.preventDefault(); // lets the card be a drop target
+                    e.dataTransfer.dropEffect = canDrop(node.id) ? "move" : "none";
+                    if (overId !== node.id) setOverId(node.id);
+                  },
+                  onDragLeave: () => setOverId((o) => (o === node.id ? null : o)),
+                  onDrop: (e) => {
+                    e.preventDefault();
+                    dropOn(node.id);
+                  },
+                }
+              : undefined
+          }
         />
         {!collapsed && node.children.length > 0 && (
           <ul>
@@ -485,6 +627,7 @@ export default function HierarchyTree({
         ref={scrollRef}
         onPointerDown={onPointerDown}
         onClickCapture={onClickCapture}
+        onDragOver={dragId ? autoScroll : undefined}
         className={`min-h-0 flex-1 overflow-auto p-6 ${isFull ? (grabbing ? "cursor-grabbing select-none" : "cursor-grab") : ""}`}
         style={isFull ? undefined : { maxHeight: "70vh" }}
       >
@@ -498,6 +641,57 @@ export default function HierarchyTree({
           </div>
         </div>
       </div>
+      {admin && (
+        <p className="border-t border-line px-3 py-2 text-xs text-slate-500">
+          Drag a card onto another affiliate to move them and their team under that person, or onto the LumeraMD card to make
+          them top level.
+        </p>
+      )}
+      {pendingMove && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-ink/40 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-2xl">
+            <h2 className="text-base font-semibold text-ink">Move affiliate?</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              <b className="text-ink">{pendingMove.node.name}</b>
+              {pendingMove.node.teamSize > 0 && ` and their team of ${pendingMove.node.teamSize}`} will move from{" "}
+              <b className="text-ink">
+                {byId.nodes.get(byId.parentOf.get(pendingMove.node.id) ?? "")?.name ?? "the top level"}
+              </b>{" "}
+              to{" "}
+              <b className="text-ink">
+                {pendingMove.target.kind === "company" ? "the top level (no sponsor)" : pendingMove.target.name}
+              </b>
+              .
+            </p>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-slate-500">
+              <li>New orders pay team overrides up the new chain.</li>
+              <li>Orders still pending are worked out again on the new chain.</li>
+              <li>Approved and paid orders keep the commissions they were paid with.</li>
+              <li>Recruit counts change, which can change who qualifies for overrides.</li>
+              <li>The affiliate and both sponsors are notified.</li>
+            </ul>
+            {moveError && <p className="mt-3 text-sm text-error">{moveError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={moving}
+                onClick={() => setPendingMove(null)}
+                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-slate-600 hover:bg-page-bg disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={moving}
+                onClick={confirmMove}
+                className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+              >
+                {moving ? "Moving..." : "Move"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {isFull && selected && (
         <DetailsPanel
           node={selected}

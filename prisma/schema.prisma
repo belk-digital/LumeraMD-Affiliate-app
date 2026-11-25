@@ -596,3 +596,23 @@ model OidcGrant {
   @@index([createdAt])
   @@map("oidc_grants")
 }
+
+// One row per admin re-parenting of an affiliate (drag and drop on the admin Hierarchy page). Names are
+// snapshots so the history still reads if an affiliate is later renamed or removed.
+model AffiliateMove {
+  id                  String   @id @default(cuid())
+  affiliateId         String
+  affiliateName       String
+  fromParentId        String?
+  fromParentName      String?
+  toParentId          String?
+  toParentName        String?
+  teamSize            Int      @default(0)
+  pendingOrdersUpdated Int     @default(0)
+  movedByEmail        String
+  createdAt           DateTime @default(now())
+
+  @@index([affiliateId])
+  @@index([createdAt])
+  @@map("affiliate_moves")
+}
