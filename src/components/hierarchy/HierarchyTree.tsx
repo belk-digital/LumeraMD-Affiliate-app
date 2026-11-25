@@ -670,6 +670,12 @@ export default function HierarchyTree({
               <li>Recruit counts change, which can change who qualifies for overrides.</li>
               <li>The affiliate and both sponsors are notified.</li>
             </ul>
+            {pendingMove.target.kind !== "company" && pendingMove.target.canRecruit === false && (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" role="alert">
+                <b>{pendingMove.target.name}</b> has recruiting turned off. They can still have this affiliate on their team and
+                earn overrides, but they cannot invite anyone new until recruiting is turned back on.
+              </p>
+            )}
             {moveError && <p className="mt-3 text-sm text-error">{moveError}</p>}
             <div className="mt-5 flex justify-end gap-2">
               <button

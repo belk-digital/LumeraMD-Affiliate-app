@@ -17,6 +17,8 @@ export interface HierarchyNode {
   status?: string;
   /** Admin tree only. */
   email?: string;
+  /** Admin tree only: whether this affiliate may recruit (invite link, QR). */
+  canRecruit?: boolean;
   /** Admin tree only: lifetime sales volume. */
   sales?: number;
   /** Everyone below this node. */
@@ -42,7 +44,7 @@ export async function getAdminHierarchy(): Promise<{
 }> {
   const [rows, salesRows] = await Promise.all([
     prisma.affiliate.findMany({
-      select: { id: true, displayName: true, userEmail: true, status: true, parentAffiliateId: true },
+      select: { id: true, displayName: true, userEmail: true, status: true, canRecruit: true, parentAffiliateId: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.affiliateConversion.groupBy({
@@ -78,6 +80,7 @@ export async function getAdminHierarchy(): Promise<{
       email: r.userEmail,
       kind: "member",
       status: r.status,
+      canRecruit: r.canRecruit,
       sales: sales.get(id) ?? 0,
       teamSize: 0,
       children,
