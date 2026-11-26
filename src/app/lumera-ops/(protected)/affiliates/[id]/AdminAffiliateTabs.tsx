@@ -12,12 +12,35 @@ import {
   ShieldAlert, 
   Edit2, 
   Copy, 
+  Check,
   Mail, 
   Link as LinkIcon, 
   Ban,
   CheckCircle2,
   Users
 } from "lucide-react";
+
+// Copies text, falling back to a hidden textarea when the Clipboard API is blocked. Resolves true on success.
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
 
 type Tab = "identity" | "referral" | "commission" | "stats" | "payout" | "fraud";
 
@@ -68,8 +91,12 @@ export function IdentityInfoCard({ affiliate }: { affiliate: Record<string, any>
     shopifyDiscountValue: affiliate.shopifyDiscountValue || 10,
   });
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const handleCopy = async (text: string) => {
+    if (await copyText(text)) {
+      setCopiedKey(text);
+      setTimeout(() => setCopiedKey((k) => (k === text ? null : k)), 1500);
+    }
   };
 
   const handleSave = async () => {
@@ -171,7 +198,7 @@ export function IdentityInfoCard({ affiliate }: { affiliate: Record<string, any>
               <>
                 <span className="font-medium truncate">{affiliate.userEmail}</span>
                 <button onClick={() => handleCopy(affiliate.userEmail)} className="text-ink/40 hover:text-ink transition p-1 ml-2 shrink-0">
-                  <Copy className="w-4 h-4" />
+                  {copiedKey === affiliate.userEmail ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                 </button>
               </>
             )}
@@ -219,7 +246,7 @@ export function IdentityInfoCard({ affiliate }: { affiliate: Record<string, any>
           <div className="flex items-center justify-between flex-1 pl-4 overflow-hidden">
             <span className="font-medium font-mono text-xs truncate">{affiliate.id}</span>
             <button onClick={() => handleCopy(affiliate.id)} className="text-ink/40 hover:text-ink transition p-1 ml-2 shrink-0">
-              <Copy className="w-4 h-4" />
+              {copiedKey === affiliate.id ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
             </button>
           </div>
         </div>
@@ -238,7 +265,7 @@ export function IdentityInfoCard({ affiliate }: { affiliate: Record<string, any>
               <>
                 <span className="font-medium font-mono text-xs truncate text-primary">{affiliate.referralSlug}</span>
                 <button onClick={() => handleCopy(affiliate.referralSlug)} className="text-ink/40 hover:text-ink transition p-1 ml-2 shrink-0">
-                  <Copy className="w-4 h-4" />
+                  {copiedKey === affiliate.referralSlug ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                 </button>
               </>
             )}
@@ -261,7 +288,7 @@ export function IdentityInfoCard({ affiliate }: { affiliate: Record<string, any>
                 <span className="font-medium font-mono text-xs truncate text-primary uppercase">{affiliate.shopifyDiscountCode || "—"}</span>
                 {affiliate.shopifyDiscountCode && (
                   <button onClick={() => handleCopy(affiliate.shopifyDiscountCode)} className="text-ink/40 hover:text-ink transition p-1 ml-2 shrink-0">
-                    <Copy className="w-4 h-4" />
+                    {copiedKey === affiliate.shopifyDiscountCode ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                   </button>
                 )}
               </>
@@ -388,9 +415,12 @@ export function AccountStatusCard({ affiliate }: { affiliate: Record<string, any
 }
 
 export function QuickActionsCard({ affiliate }: { affiliate: Record<string, any> }) {
-  const handleCopyLink = () => {
+  const [copied, setCopied] = useState<"ok" | "fail" | null>(null);
+  const handleCopyLink = async () => {
     const appBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    navigator.clipboard.writeText(`${appBaseUrl}/ref/${affiliate.referralSlug}`);
+    const ok = await copyText(`${appBaseUrl}/ref/${affiliate.referralSlug}`);
+    setCopied(ok ? "ok" : "fail");
+    setTimeout(() => setCopied(null), 2000);
   };
 
   return (
@@ -410,9 +440,18 @@ export function QuickActionsCard({ affiliate }: { affiliate: Record<string, any>
           <Mail className="w-4 h-4 text-ink/60" />
           Send Email
         </a>
-        <button onClick={handleCopyLink} className="flex items-center justify-center gap-2 px-3 py-2.5 border border-line rounded-xl text-xs font-medium hover:bg-page-bg transition">
-          <LinkIcon className="w-4 h-4 text-ink/60" />
-          Copy Referral Link
+        <button
+          onClick={handleCopyLink}
+          className={`flex items-center justify-center gap-2 px-3 py-2.5 border rounded-xl text-xs font-medium transition ${
+            copied === "ok"
+              ? "border-green-300 bg-green-50 text-green-700"
+              : copied === "fail"
+                ? "border-error/30 bg-error/5 text-error"
+                : "border-line hover:bg-page-bg"
+          }`}
+        >
+          {copied === "ok" ? <Check className="w-4 h-4 text-green-600" /> : <LinkIcon className="w-4 h-4 text-ink/60" />}
+          {copied === "ok" ? "Copied!" : copied === "fail" ? "Copy failed" : "Copy Referral Link"}
         </button>
         <Link href={`?tab=stats`} className="flex items-center justify-center gap-2 px-3 py-2.5 border border-line rounded-xl text-xs font-medium hover:bg-page-bg transition">
           <BarChart className="w-4 h-4 text-ink/60" />
