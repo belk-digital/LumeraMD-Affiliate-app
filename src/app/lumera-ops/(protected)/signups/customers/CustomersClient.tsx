@@ -20,6 +20,7 @@ import {
   type MenuItem,
 } from "../_components/kit";
 import { usd } from "../_components/fmt";
+import AddPersonButton from "../_components/AddPersonModal";
 import CancelModal from "./CancelModal";
 import CustomerPanel from "./CustomerPanel";
 import type { CountStat, CustomerData } from "./types";
@@ -168,7 +169,10 @@ export default function CustomersClient({
                 options={SORT_OPTIONS}
               />
             </div>
-            <ExportButton href={exportHref} />
+            <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+              <AddPersonButton kind="member" />
+              <ExportButton href={exportHref} />
+            </div>
           </Toolbar>
 
           {checked.size > 0 && (

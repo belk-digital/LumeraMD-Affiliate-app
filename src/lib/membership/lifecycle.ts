@@ -292,6 +292,29 @@ export async function grantComplimentary(
     throw new MembershipError("This membership is already complimentary.", 409);
   }
   const firstActivation = customer.activatedAt === null;
+
+  // A member being billed monthly by card must stop being charged: otherwise "free" would still take money
+  // every month (and the next payment would end the complimentary status). If Authorize.net can't be
+  // reached the id stays on the record and the admin is told to cancel it by hand.
+  const billingWarnings: string[] = [];
+  let clearSubscription = false;
+  if (customer.authnetSubscriptionId) {
+    try {
+      await cancelSubscription(customer.authnetSubscriptionId);
+      clearSubscription = true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/cancel|terminat/i.test(message)) {
+        clearSubscription = true; // already stopped on their side
+      } else {
+        console.error("Authorize.net subscription cancel failed", customer.authnetSubscriptionId, message);
+        billingWarnings.push(
+          `The membership is now complimentary, but its Authorize.net subscription (${customer.authnetSubscriptionId}) could not be stopped: ${message}. Cancel it in Authorize.net so they are not charged again.`,
+        );
+      }
+    }
+  }
+
   const updated = await prisma.customerSignup.update({
     where: { id: customer.id },
     data: {
@@ -299,13 +322,14 @@ export async function grantComplimentary(
       activatedAt: customer.activatedAt ?? new Date(),
       cancelledAt: null,
       currentPeriodEnd: null,
+      ...(clearSubscription ? { authnetSubscriptionId: null } : {}),
       complimentary: true,
       complimentaryNote: note,
       complimentaryBy: params.adminEmail ?? null,
     },
   });
 
-  const warnings: string[] = [];
+  const warnings: string[] = [...billingWarnings];
   const discount = await ensureMemberDiscount(updated, opts);
   if (discount.error) warnings.push(discount.error);
   try {

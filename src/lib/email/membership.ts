@@ -85,6 +85,27 @@ export async function notifyMembershipPastDue(customer: CustomerSignup) {
   );
 }
 
+/** Sent when an admin adds someone to a paid membership: it is ready, and here is where to set up the monthly payment. */
+export async function notifyMembershipInvite(customer: CustomerSignup) {
+  const payLink = payLinkFor(customer);
+  const plan = PLANS[customer.plan as PlanKey];
+  const price = plan ? `$${plan.monthlyPrice} per month` : "monthly";
+  await sendEmail(
+    customer.email,
+    "Your LumeraMD membership is ready",
+    buildNotificationEmail({
+      variant: "membership-requested",
+      headline: "Your Membership Is Ready",
+      message: payLink
+        ? `Hi ${customer.firstName}, we set up a ${planName(customer)} membership (${price}) for you. Your benefits start as soon as your first payment goes through. Use the button below to add your card; it renews monthly.`
+        : `Hi ${customer.firstName}, we set up a ${planName(customer)} membership (${price}) for you. We will email you as soon as it is active. You can check its status any time in your account.`,
+      ctaLabel: payLink ? "Set Up Payment" : "View Your Account",
+      ctaUrl: payLink ?? `${APP_BASE_URL}/account/login`,
+      logoWhiteUrl: LOGO_WHITE_URL,
+    }),
+  );
+}
+
 /** Sent when a sales rep is approved: their Premium membership starts with the first payment. */
 export async function notifyRepPaymentDue(customer: CustomerSignup) {
   const payLink = payLinkFor(customer);

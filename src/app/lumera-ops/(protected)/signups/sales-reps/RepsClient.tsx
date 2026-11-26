@@ -20,6 +20,7 @@ import {
   type MenuItem,
 } from "../_components/kit";
 import { usd } from "../_components/fmt";
+import AddPersonButton from "../_components/AddPersonModal";
 import RejectModal from "./RejectModal";
 import RepPanel from "./RepPanel";
 import type { CountStat, RepData } from "./types";
@@ -160,6 +161,7 @@ export default function RepsClient({
 
   const menuFor = (r: RepData): MenuItem[] => [
     { label: "View details", onClick: () => open(r.id) },
+    { label: "View full profile", href: `/lumera-ops/sales-reps/${r.id}` },
     ...(r.hasResume ? [{ label: "Download resume", href: `/api/lumera-ops/sales-reps/${r.id}/resume` }] : []),
     ...(!r.linkedAffiliateId
       ? [
@@ -217,7 +219,10 @@ export default function RepsClient({
                 options={SORT_OPTIONS}
               />
             </div>
-            <ExportButton href={exportHref} />
+            <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+              <AddPersonButton kind="rep" />
+              <ExportButton href={exportHref} />
+            </div>
           </Toolbar>
 
           {bulkNotice && <Notice tone={bulkNotice.tone}>{bulkNotice.text}</Notice>}

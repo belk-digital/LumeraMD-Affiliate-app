@@ -50,6 +50,7 @@ export default function RepPanel({
 }) {
   const actionable = !rep.linkedAffiliateId;
   const link = useCopy();
+  const profileHref = `/lumera-ops/sales-reps/${rep.id}`;
   const moreInfo = `mailto:${rep.email}?subject=${encodeURIComponent("Your LumeraMD application")}&body=${encodeURIComponent(
     `Hi ${rep.name.split(" ")[0]},\n\nThanks for applying to the LumeraMD sales rep program. Before we can finish reviewing your application, could you tell us a little more about:\n\n- \n\nThanks!`,
   )}`;
@@ -107,14 +108,28 @@ export default function RepPanel({
                 <MessageSquare className="h-4 w-4" />
                 Request more information
               </a>
+              <Link
+                href={profileHref}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark"
+              >
+                View full profile
+              </Link>
             </>
           ) : (
-            <Link
-              href={`/lumera-ops/affiliates/${rep.linkedAffiliateId}`}
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark"
-            >
-              View affiliate account
-            </Link>
+            <>
+              <Link
+                href={profileHref}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark"
+              >
+                View full profile
+              </Link>
+              <Link
+                href={`/lumera-ops/affiliates/${rep.linkedAffiliateId}`}
+                className="flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink/80 transition hover:bg-page-bg"
+              >
+                View affiliate account
+              </Link>
+            </>
           )}
         </>
       }
