@@ -108,7 +108,7 @@ export function TabReferral({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-line bg-white shadow-sm flex flex-col h-full">
+        <div className="rounded-2xl border border-line bg-white shadow-sm flex flex-col">
           <div className="flex items-center gap-3 p-6 border-b border-line">
             <div className="bg-primary-light p-2 rounded-lg text-primary">
               <LinkIcon className="w-5 h-5" />
