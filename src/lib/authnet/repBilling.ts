@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { PLANS } from "@/lib/membership/plans";
+import type { CustomerSignup } from "@/generated/prisma/client";
+import { PLANS, type PlanKey } from "@/lib/membership/plans";
 import { AuthnetError, cancelSubscription, createMonthlySubscription } from "@/lib/authnet/client";
 
 // Pausing a suspended rep's $79 Premium billing. Authorize.net's API can only cancel a subscription
@@ -41,7 +42,7 @@ export async function pauseRepBilling(affiliate: { userEmail: string }): Promise
  */
 export async function resumeRepBilling(affiliate: { userEmail: string }): Promise<string[]> {
   const member = await repMembership(affiliate.userEmail);
-  if (!member || member.authnetSubscriptionId || member.complimentary) return [];
+  if (!member || member.authnetSubscriptionId || member.complimentary || member.status === "paused") return [];
   // Only members who were being billed by card have a saved one; manual and free members are left alone.
   if (!member.authnetCustomerProfileId || !member.authnetPaymentProfileId) return [];
 
@@ -74,5 +75,42 @@ export async function resumeRepBilling(affiliate: { userEmail: string }): Promis
     return [
       `The rep is active again, but their monthly billing could not be restarted: ${message}. Send them a pay link from Signups › Sales reps.`,
     ];
+  }
+}
+
+/**
+ * Starts the monthly card charge again for a membership an admin has switched back on, from the card saved on
+ * their last payment, on the day their paid period ends. Returns `started` plus warnings for the admin; never throws.
+ */
+export async function resumeMemberCardBilling(member: CustomerSignup): Promise<{ started: boolean; warnings: string[] }> {
+  if (member.authnetSubscriptionId || member.complimentary) return { started: false, warnings: [] };
+  // Only members who were billed by card have a saved one; manual members are left alone.
+  if (!member.authnetCustomerProfileId || !member.authnetPaymentProfileId || !member.currentPeriodEnd) {
+    return { started: false, warnings: [] };
+  }
+  const plan = PLANS[member.plan as PlanKey];
+  if (!plan) return { started: false, warnings: [] };
+  try {
+    const subscriptionId = await createMonthlySubscription({
+      customerId: member.id,
+      name: `${plan.name} membership`,
+      amount: plan.monthlyPrice,
+      startDate: member.currentPeriodEnd,
+      customerProfileId: member.authnetCustomerProfileId,
+      paymentProfileId: member.authnetPaymentProfileId,
+    });
+    const saved = await prisma.customerSignup.updateMany({
+      where: { id: member.id, authnetSubscriptionId: null },
+      data: { authnetSubscriptionId: subscriptionId },
+    });
+    if (saved.count === 0) await cancelSubscription(subscriptionId).catch(() => {});
+    return { started: saved.count > 0, warnings: [] };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Could not resume member billing", member.email, message);
+    return {
+      started: false,
+      warnings: [`The membership is active again, but its monthly card billing could not be restarted: ${message}. Send them the payment link so they can renew.`],
+    };
   }
 }

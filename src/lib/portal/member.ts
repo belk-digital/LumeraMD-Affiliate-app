@@ -11,7 +11,7 @@ const TIERS: Record<string, string> = {
   agent: "sales_rep", // a sales rep's own Premium membership
 };
 
-export type PortalPaymentStatus = "paid" | "complimentary" | "grace" | "past_due" | "unpaid" | "cancelled";
+export type PortalPaymentStatus = "paid" | "complimentary" | "grace" | "past_due" | "unpaid" | "cancelled" | "paused";
 
 /**
  * paid          - active, current period paid for
@@ -20,11 +20,13 @@ export type PortalPaymentStatus = "paid" | "complimentary" | "grace" | "past_due
  * past_due      - grace is over, discount withdrawn
  * unpaid        - signed up, never paid
  * cancelled     - ended
+ * paused        - an admin paused it; discount withdrawn until it is switched back on
  */
 export function paymentStatus(c: CustomerSignup, now = new Date()): PortalPaymentStatus {
   if (c.status === "cancelled") return "cancelled";
   if (c.status === "pending_payment") return "unpaid";
   if (c.status === "past_due") return "past_due";
+  if (c.status === "paused") return "paused";
   if (c.complimentary) return "complimentary";
   if (c.currentPeriodEnd && c.currentPeriodEnd < now) return "grace";
   return "paid";

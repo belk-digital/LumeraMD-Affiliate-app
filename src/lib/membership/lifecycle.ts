@@ -10,8 +10,14 @@ import { emitPortalEvent } from "@/lib/portal/events";
 import {
   notifyMembershipActive,
   notifyMembershipCancelled,
+  notifyMembershipComplimentary,
   notifyMembershipPastDue,
+  notifyMembershipPaused,
+  notifyMembershipPaymentLink,
+  payLinkFor,
+  notifyMembershipResumed,
 } from "@/lib/email/membership";
+import { resumeMemberCardBilling } from "@/lib/authnet/repBilling";
 
 // Membership lifecycle. A payment provider (or an admin, by hand) calls recordMembershipPayment;
 // everything else in the product — discounts, emails, rep commission, the customer's account — is
@@ -333,9 +339,10 @@ export async function grantComplimentary(
   const discount = await ensureMemberDiscount(updated, opts);
   if (discount.error) warnings.push(discount.error);
   try {
-    await notifyMembershipActive(discount.customer, {
+    await notifyMembershipComplimentary(discount.customer, {
       discountCode: discount.customer.memberDiscountActive ? discount.customer.memberDiscountCode : null,
       firstActivation,
+      cardStopped: clearSubscription,
     });
   } catch (err) {
     console.error("Membership email failed", err);
@@ -393,6 +400,105 @@ export async function cancelMembership(customerId: string, opts: LifecycleOption
     customer: discount.customer,
     warnings: [...(discount.error ? [discount.error] : []), ...billingWarnings],
   };
+}
+
+/**
+ * Admin pauses a membership: any monthly card charge is stopped (the saved card is kept), the member discount
+ * is withdrawn and the member is told. The record, paid-through date and any complimentary status are kept, so
+ * switching it back on needs no new payment while the period is still paid.
+ */
+export async function pauseMembership(customerId: string, opts: LifecycleOptions = {}) {
+  const customer = await getCustomer(customerId);
+  if (customer.status === "paused") throw new MembershipError("This membership is already paused.", 409);
+  if (customer.status === "cancelled") throw new MembershipError("A cancelled membership cannot be paused.", 409);
+  if (customer.status === "pending_payment") {
+    throw new MembershipError("This membership has not started yet, so there is nothing to pause.", 409);
+  }
+
+  const warnings: string[] = [];
+  let clearSubscription = false;
+  if (customer.authnetSubscriptionId) {
+    try {
+      await cancelSubscription(customer.authnetSubscriptionId);
+      clearSubscription = true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/cancel|terminat/i.test(message)) {
+        clearSubscription = true;
+      } else {
+        console.error("Authorize.net subscription cancel failed", customer.authnetSubscriptionId, message);
+        warnings.push(
+          `The membership is paused, but its Authorize.net subscription (${customer.authnetSubscriptionId}) could not be stopped: ${message}. Cancel it in Authorize.net so they are not charged while paused.`,
+        );
+      }
+    }
+  }
+  const paused = await prisma.customerSignup.update({
+    where: { id: customer.id },
+    data: { status: "paused", ...(clearSubscription ? { authnetSubscriptionId: null } : {}) },
+  });
+  const discount = await removeMemberDiscount(paused, opts);
+  if (discount.error) warnings.push(discount.error);
+  try {
+    await notifyMembershipPaused(discount.customer, { cardStopped: clearSubscription });
+  } catch (err) {
+    console.error("Membership email failed", err);
+  }
+  return { customer: discount.customer, warnings };
+}
+
+/**
+ * Admin switches a paused membership back on. A complimentary one simply comes back. A paid one comes back only
+ * while its paid period has not ended (so nothing is given away); the card billing restarts from the saved card.
+ * If the period ran out while paused, it stays paused and the admin is told to send the payment link.
+ */
+export async function activateMembership(customerId: string, opts: LifecycleOptions = {}) {
+  const customer = await getCustomer(customerId);
+  if (customer.status !== "paused") throw new MembershipError("Only a paused membership can be switched back on.", 409);
+  if (!customer.complimentary && !(customer.currentPeriodEnd && customer.currentPeriodEnd > new Date())) {
+    throw new MembershipError(
+      "Their paid period ended while the membership was paused, so it cannot simply be switched on. Send them the payment link to renew, or make it complimentary.",
+      409,
+    );
+  }
+  const active = await prisma.customerSignup.update({ where: { id: customer.id }, data: { status: "active" } });
+  const warnings: string[] = [];
+  const discount = await ensureMemberDiscount(active, opts);
+  if (discount.error) warnings.push(discount.error);
+  const billing = await resumeMemberCardBilling(discount.customer);
+  warnings.push(...billing.warnings);
+  try {
+    await notifyMembershipResumed(discount.customer, {
+      discountCode: discount.customer.memberDiscountActive ? discount.customer.memberDiscountCode : null,
+      billingResumed: billing.started,
+    });
+  } catch (err) {
+    console.error("Membership email failed", err);
+  }
+  return { customer: discount.customer, warnings };
+}
+
+/**
+ * Admin emails the member their payment link: to start paying, to settle an overdue payment, or to switch a paused
+ * membership back on once its paid period has ended (a paused one that is still paid is switched on with
+ * activateMembership instead, so nobody pays twice). Paying through the link activates the membership.
+ */
+export async function sendPaymentLink(customerId: string) {
+  const customer = await getCustomer(customerId);
+  if (customer.status === "active") throw new MembershipError("This membership is already active, so there is nothing to pay.", 409);
+  if (customer.status === "cancelled") throw new MembershipError("A cancelled membership cannot be paid for.", 409);
+  if (customer.status === "paused" && (customer.complimentary || (customer.currentPeriodEnd && customer.currentPeriodEnd > new Date()))) {
+    throw new MembershipError("This paused membership is still paid up. Use Activate to switch it back on; no payment is needed.", 409);
+  }
+  const link = payLinkFor(customer);
+  if (!link) throw new MembershipError("Online payment is not set up yet, so there is no payment link to send.", 400);
+  try {
+    await notifyMembershipPaymentLink(customer, link);
+  } catch (err) {
+    console.error("Payment link email failed", err);
+    throw new MembershipError("The email could not be sent. Copy the payment link from the card and send it yourself.", 400);
+  }
+  return { link };
 }
 
 /** Admin bookkeeping: how many of the plan's included consultations have been used. */

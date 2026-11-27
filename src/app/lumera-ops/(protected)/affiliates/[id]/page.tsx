@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/admin/requireAdmin";
@@ -12,6 +13,10 @@ import {
 import { MousePointerClick, BarChart as BarChartIcon, DollarSign } from "lucide-react";
 
 import { TabReferral } from "./TabReferral";
+import { storeLandingUrl, utmParamsFor } from "@/lib/referral";
+import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import { authnetConfigured } from "@/lib/authnet/client";
+import MembershipCard, { type MembershipSummary } from "./MembershipCard";
 import { TabCommission } from "./TabCommission";
 import { TabStats } from "./TabStats";
 import { TabPayout } from "./TabPayout";
@@ -40,6 +45,40 @@ export default async function AdminAffiliateDetailPage({
     },
   });
   if (!affiliate) notFound();
+
+  // The affiliate's own membership (a sales rep's Premium, or a customer plan), matched by email.
+  const membershipRow = await prisma.customerSignup.findFirst({
+    where: { email: { equals: affiliate.userEmail, mode: "insensitive" } },
+    orderBy: { createdAt: "desc" },
+  });
+  const planInfo = membershipRow ? PLANS[membershipRow.plan as PlanKey] : undefined;
+  const membership: MembershipSummary | null = membershipRow
+    ? {
+        id: membershipRow.id,
+        planName: planInfo ? `${planInfo.name}${membershipRow.plan === "agent" ? " (rep)" : ""}` : membershipRow.plan,
+        status: membershipRow.status,
+        complimentary: membershipRow.complimentary,
+        note: membershipRow.complimentaryNote,
+        paidThrough: membershipRow.currentPeriodEnd?.toISOString() ?? null,
+        billing: membershipRow.authnetSubscriptionId ? "Monthly by card" : "Manual",
+        payLink:
+          authnetConfigured() &&
+          (membershipRow.status === "pending_payment" ||
+            membershipRow.status === "past_due" ||
+            (membershipRow.status === "paused" &&
+              !membershipRow.complimentary &&
+              !(membershipRow.currentPeriodEnd && membershipRow.currentPeriodEnd > new Date())))
+            ? `${process.env.APP_BASE_URL ?? ""}/pay/${membershipRow.id}`
+            : null,
+      }
+    : null;
+
+  // The address the links are built from: the configured one, else whatever the admin is browsing on.
+  const reqHeaders = await headers();
+  const host = reqHeaders.get("x-forwarded-host") ?? reqHeaders.get("host");
+  const baseUrl = (
+    process.env.APP_BASE_URL || (host ? `${reqHeaders.get("x-forwarded-proto") ?? "http"}://${host}` : "")
+  ).replace(/\/$/, "");
 
   const settings = await prisma.affiliateSettings.findUnique({ where: { id: "global" } });
   const unilevelEnabled = settings?.unilevelEnabled ?? false;
@@ -121,13 +160,19 @@ export default async function AdminAffiliateDetailPage({
           </div>
           <div className="md:col-span-2 space-y-6">
             <AccountStatusCard affiliate={affiliate} />
+            <MembershipCard membership={membership} />
             <TeamRecruitingCard affiliate={affiliate} />
             <QuickActionsCard affiliate={affiliate} />
           </div>
         </div>
       )}
 
-      {tab === "referral" && <TabReferral affiliate={affiliate} />}
+      {tab === "referral" && <TabReferral
+          affiliate={affiliate}
+          baseUrl={baseUrl}
+          landingPage={storeLandingUrl(affiliate.referralSlug)}
+          utmParams={new URLSearchParams(utmParamsFor(affiliate.referralSlug)).toString()}
+        />}
       {tab === "commission" && (
         <TabCommission affiliate={affiliate} unilevelEnabled={unilevelEnabled} />
       )}

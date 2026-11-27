@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { updateAffiliateStats } from "@/lib/affiliates/stats";
+import { LANDING_PATH, utmParamsFor } from "@/lib/referral";
 
 const PUBLIC_DOMAIN = process.env.SHOPIFY_PUBLIC_DOMAIN ?? process.env.SHOPIFY_STORE_DOMAIN!;
-// Where an affiliate's order link actually lands the shopper — the full catalog, not the homepage.
-const LANDING_PATH = "/collections/all-products";
 
 function hashIp(ip: string) {
   return crypto.createHash("sha256").update(ip).digest("hex");
@@ -50,6 +49,7 @@ export async function GET(
   landing.searchParams.set("ref", affiliate.id);
   landing.searchParams.set("cid", click.id);
   landing.searchParams.set("d", String(affiliate.cookieDurationDays));
+  for (const [k, v] of Object.entries(utmParamsFor(affiliate.referralSlug))) landing.searchParams.set(k, v);
   const landingPath = landing.pathname + landing.search;
 
   if (affiliate.shopifyDiscountCode) {

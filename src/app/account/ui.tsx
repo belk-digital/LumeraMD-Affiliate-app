@@ -86,12 +86,14 @@ export const MEMBERSHIP_TONE: Record<string, Tone> = {
   pending_payment: "amber",
   past_due: "red",
   cancelled: "slate",
+  paused: "amber",
 };
 export const MEMBERSHIP_LABEL: Record<string, string> = {
   active: "Active",
   pending_payment: "Pending payment",
   past_due: "Past due",
   cancelled: "Cancelled",
+  paused: "Paused",
 };
 
 export function StatCard({

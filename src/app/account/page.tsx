@@ -46,6 +46,7 @@ export default async function AccountOverviewPage() {
     pending_payment: "Waiting for your first payment. We'll email you when it's active.",
     active: customer.complimentary ? "Complimentary membership: no payment needed." : customer.currentPeriodEnd ? `Active through ${fmtDateLong(customer.currentPeriodEnd)}.` : "Your membership is active.",
     past_due: "Your payment is overdue, so your member discount is paused.",
+    paused: "Your membership is paused, so your member discount is on hold. We'll email you when it is switched back on.",
     cancelled: customer.cancelledAt ? `Cancelled on ${fmtDateLong(customer.cancelledAt)}.` : "This membership was cancelled.",
   };
 

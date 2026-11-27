@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 // Copies text, falling back to a hidden textarea when the Clipboard API is blocked. Resolves true on success.
-async function copyText(text: string): Promise<boolean> {
+export async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
@@ -121,9 +121,6 @@ export function IdentityInfoCard({ affiliate }: { affiliate: Record<string, any>
       setIsSaving(false);
     }
   };
-
-  const appBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-  const referralLink = `${appBaseUrl}/ref/${affiliate.referralSlug}`;
 
   return (
     <div className="rounded-2xl border border-line bg-white shadow-sm h-full flex flex-col">

@@ -76,6 +76,12 @@ function buildMainNav({
       isActive: (p) => p.startsWith("/lumera-ops/reports"),
     },
     {
+      href: "/lumera-ops/email-logs",
+      label: "Email logs",
+      icon: "mail",
+      isActive: (p) => p.startsWith("/lumera-ops/email-logs"),
+    },
+    {
       href: "/lumera-ops/portal",
       label: "API & webhooks",
       icon: "link",

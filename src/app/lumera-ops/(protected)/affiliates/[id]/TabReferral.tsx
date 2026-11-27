@@ -2,14 +2,61 @@
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { Link as LinkIcon, Download, Copy } from "lucide-react";
+import { Link as LinkIcon, Download, Copy, Check } from "lucide-react";
+import { copyText } from "./AdminAffiliateTabs";
 
-export function TabReferral({ affiliate }: { affiliate: Record<string, any> }) {
+// One shareable link with a copy button that says it copied.
+function LinkRow({ title, hint, url, warn }: { title: string; hint: string; url: string; warn?: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    if (await copyText(url)) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }
+  };
+  return (
+    <div className="py-4 first:pt-0 last:pb-0">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-semibold text-ink">{title}</p>
+        <button
+          type="button"
+          onClick={copy}
+          className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition ${
+            copied ? "border-green-300 bg-green-50 text-green-700" : "border-line text-ink/60 hover:bg-page-bg"
+          }`}
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+      <p className="mt-0.5 text-xs text-ink/50">{hint}</p>
+      <p className="mt-2 break-all rounded-lg bg-page-bg px-3 py-2 font-mono text-xs text-ink">{url}</p>
+      {warn && <p className="mt-2 text-xs text-amber-700">{warn}</p>}
+    </div>
+  );
+}
+
+export function TabReferral({
+  affiliate,
+  baseUrl,
+  landingPage,
+  utmParams,
+}: {
+  affiliate: Record<string, any>;
+  /** This app's public address, worked out on the server so the server and browser render the same links. */
+  baseUrl: string;
+  /** The store page a click lands on, UTM tags included (built on the server from the store settings). */
+  landingPage: string;
+  /** The UTM tags added to every click, as a query string. */
+  utmParams: string;
+}) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
-  const appBaseUrl = typeof window !== "undefined" ? window.location.origin : "https://lumeramd.com";
-  const referralLink = `${appBaseUrl}/?ref=${affiliate.referralSlug}`;
-  const landingPage = `${appBaseUrl}`;
-  const utmParams = `utm_source=affiliate&utm_medium=referral&utm_campaign=${affiliate.referralSlug}`;
+  const appBaseUrl = baseUrl;
+  // The same link the affiliate sees on their own dashboard: /ref/<slug> records the click, sets the tracking
+  // cookie and applies their discount code. The app's homepage ignores ?ref=, so that form tracked nothing.
+  const referralLink = `${appBaseUrl}/ref/${affiliate.referralSlug}`;
+  const membershipLink = `${appBaseUrl}/customers/signup?ref=${affiliate.referralSlug}`;
+  const teamLink = `${appBaseUrl}/sales-reps/signup?ref=${affiliate.referralSlug}`;
 
   useEffect(() => {
     QRCode.toDataURL(referralLink, { width: 150, margin: 1 }, (err, url) => {
@@ -31,6 +78,36 @@ export function TabReferral({ affiliate }: { affiliate: Record<string, any> }) {
     <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
       {/* Left Column */}
       <div className="md:col-span-3 space-y-6">
+        <div className="rounded-2xl border border-line bg-white shadow-sm">
+          <div className="flex items-center gap-3 p-6 border-b border-line">
+            <div className="bg-primary-light p-2 rounded-lg text-primary">
+              <LinkIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-heading text-lg font-semibold text-ink leading-tight">All Referral Links</h2>
+              <p className="text-xs text-ink/50">Every link this affiliate can share, and what each one does.</p>
+            </div>
+          </div>
+          <div className="p-6 divide-y divide-line/60">
+            <LinkRow
+              title="Order referral link"
+              hint="For shoppers. A click is tracked to this affiliate, their discount code is applied, and orders earn them commission."
+              url={referralLink}
+            />
+            <LinkRow
+              title="Membership referral link"
+              hint="For customers who want a monthly membership. People who sign up through it are credited to this affiliate."
+              url={membershipLink}
+            />
+            <LinkRow
+              title="Team referral link"
+              hint="For recruiting sales reps onto this affiliate's team. Reps who sign up through it are placed under them once approved."
+              url={teamLink}
+              warn={affiliate.canRecruit ? undefined : "Recruiting is off for this affiliate, so new reps who use this link will not be placed under them. Turn recruiting on to enable it."}
+            />
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-line bg-white shadow-sm flex flex-col h-full">
           <div className="flex items-center gap-3 p-6 border-b border-line">
             <div className="bg-primary-light p-2 rounded-lg text-primary">
@@ -66,7 +143,7 @@ export function TabReferral({ affiliate }: { affiliate: Record<string, any> }) {
             <div className="flex justify-between items-center pb-4 border-b border-line/50">
               <span className="text-ink/60 w-32 shrink-0">Landing Page</span>
               <div className="flex items-center justify-between flex-1 pl-4">
-                <span className="font-medium text-xs">{landingPage}</span>
+                <span className="font-medium text-xs break-all">{landingPage}</span>
                 <button onClick={() => handleCopy(landingPage)} className="text-ink/40 hover:text-ink transition p-1 border border-line rounded-md ml-2">
                   <Copy className="w-3.5 h-3.5" />
                 </button>

@@ -10,6 +10,10 @@ const STYLES: Record<string, string> = {
   pending_payment: "bg-amber-50 text-amber-700",
   past_due: "bg-rose-50 text-rose-600",
   cancelled: "bg-slate-100 text-slate-500",
+  paused: "bg-amber-50 text-amber-700",
+  sent: "bg-emerald-50 text-emerald-700",
+  failed: "bg-rose-50 text-rose-600",
+  logged: "bg-slate-100 text-slate-600",
 };
 
 export default function StatusPill({ status }: { status: string }) {

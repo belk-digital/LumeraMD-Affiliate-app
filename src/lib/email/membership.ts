@@ -139,6 +139,112 @@ export async function notifyMembershipCancelled(customer: CustomerSignup) {
   );
 }
 
+/** Sent when an admin asks for the member to be emailed their payment link (to start, renew or switch back on). */
+export async function notifyMembershipPaymentLink(customer: CustomerSignup, payLink: string) {
+  const name = planName(customer);
+  const price = PLANS[customer.plan as PlanKey] ? `$${PLANS[customer.plan as PlanKey].monthlyPrice} per month` : "monthly";
+  const copy =
+    customer.status === "paused"
+      ? {
+          subject: "Switch your LumeraMD membership back on",
+          headline: "Switch Your Membership Back On",
+          message: `Hi ${customer.firstName}, your ${name} membership is paused. To switch it back on, complete your payment with the button below (${price}). Your benefits and member discount return as soon as it goes through, and it renews monthly after that.`,
+          cta: "Pay & Reactivate",
+        }
+      : customer.status === "past_due"
+        ? {
+            subject: "Your LumeraMD membership payment is due",
+            headline: "Payment Due",
+            message: `Hi ${customer.firstName}, your ${name} membership payment is due (${price}). Use the button below to pay with a current card and your member discount comes right back.`,
+            cta: "Pay Now",
+          }
+        : {
+            subject: "Activate your LumeraMD membership",
+            headline: "Your Membership Is Waiting",
+            message: `Hi ${customer.firstName}, your ${name} membership (${price}) is ready and starts as soon as your first payment goes through. Use the button below to pay; it renews monthly.`,
+            cta: "Pay & Activate",
+          };
+  await sendEmail(
+    customer.email,
+    copy.subject,
+    buildNotificationEmail({
+      variant: "membership-requested",
+      headline: copy.headline,
+      message: copy.message,
+      ctaLabel: copy.cta,
+      ctaUrl: payLink,
+      logoWhiteUrl: LOGO_WHITE_URL,
+    }),
+  );
+}
+
+/** Sent when an admin makes a membership free. `firstActivation` is true when it also switches the membership on. */
+export async function notifyMembershipComplimentary(
+  customer: CustomerSignup,
+  opts: { discountCode: string | null; firstActivation: boolean; cardStopped: boolean },
+) {
+  const name = planName(customer);
+  await sendEmail(
+    customer.email,
+    opts.firstActivation ? "Your LumeraMD membership is active" : "Your LumeraMD membership is now complimentary",
+    buildNotificationEmail({
+      variant: "membership-active",
+      headline: opts.firstActivation ? "Your Membership Is Active" : "Your Membership Is On Us",
+      message: opts.firstActivation
+        ? `Welcome to LumeraMD ${name}, ${customer.firstName}! Your membership is complimentary: there is nothing to pay and it has no end date.${opts.discountCode ? " Your personal member discount code is below." : ""}`
+        : `Good news, ${customer.firstName}: your ${name} membership is now complimentary. There is nothing to pay and it has no end date.${opts.cardStopped ? " Your monthly card charge has been stopped, so you will not be billed again." : ""}${opts.discountCode ? " Your member discount code is below." : ""}`,
+      amountLabel: opts.discountCode ?? undefined,
+      amountCaption: opts.discountCode ? "Your member discount code" : undefined,
+      ctaLabel: "View Your Account",
+      ctaUrl: `${APP_BASE_URL}/account/login`,
+      logoWhiteUrl: LOGO_WHITE_URL,
+    }),
+  );
+}
+
+/** Sent when an admin pauses a membership. */
+export async function notifyMembershipPaused(customer: CustomerSignup, opts: { cardStopped: boolean }) {
+  await sendEmail(
+    customer.email,
+    "Your LumeraMD membership is paused",
+    buildNotificationEmail({
+      variant: "membership-alert",
+      headline: "Membership Paused",
+      message: `Your ${planName(customer)} membership has been paused by our team.${opts.cardStopped ? " Your monthly card charge has been stopped, so you will not be billed while it is paused." : ""} Your member discount code is on hold until it is switched back on. If you have any questions, just reply to this email or contact us.`,
+      ctaLabel: "View Your Account",
+      ctaUrl: `${APP_BASE_URL}/account/login`,
+      logoWhiteUrl: LOGO_WHITE_URL,
+    }),
+  );
+}
+
+/** Sent when an admin switches a paused membership back on. */
+export async function notifyMembershipResumed(
+  customer: CustomerSignup,
+  opts: { discountCode: string | null; billingResumed: boolean },
+) {
+  await sendEmail(
+    customer.email,
+    "Your LumeraMD membership is active again",
+    buildNotificationEmail({
+      variant: "membership-active",
+      headline: "Your Membership Is Back On",
+      message: `Your ${planName(customer)} membership is active again, ${customer.firstName}.${
+        customer.complimentary
+          ? " It is complimentary, so there is nothing to pay."
+          : customer.currentPeriodEnd
+            ? ` It runs through ${fmtDate(customer.currentPeriodEnd)}.${opts.billingResumed ? " Your monthly billing picks up again then." : ""}`
+            : ""
+      }${opts.discountCode ? " Your member discount code works again and is below." : ""}`,
+      amountLabel: opts.discountCode ?? undefined,
+      amountCaption: opts.discountCode ? "Your member discount code" : undefined,
+      ctaLabel: "View Your Account",
+      ctaUrl: `${APP_BASE_URL}/account/login`,
+      logoWhiteUrl: LOGO_WHITE_URL,
+    }),
+  );
+}
+
 export async function sendCustomerLoginEmail(email: string, link: string) {
   await sendEmail(
     email,

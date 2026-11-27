@@ -6,7 +6,7 @@ import { PLANS } from "@/lib/membership/plans";
 
 export const SIGNUPS_PAGE_SIZE = 20;
 
-export const CUSTOMER_STATUS_FILTERS = ["pending_payment", "active", "past_due", "cancelled", "complimentary"] as const;
+export const CUSTOMER_STATUS_FILTERS = ["pending_payment", "active", "past_due", "paused", "cancelled", "complimentary"] as const;
 export const REP_STATUS_FILTERS = ["pending", "approved", "rejected"] as const;
 export const RANGE_FILTERS = { "7": 7, "30": 30, "90": 90, "365": 365 } as const;
 
@@ -60,7 +60,7 @@ export function customerWhere(query: SignupQuery): Prisma.CustomerSignupWhereInp
     where.status = "active";
     where.complimentary = true;
   } else if ((CUSTOMER_STATUS_FILTERS as readonly string[]).includes(query.status)) {
-    where.status = query.status as "pending_payment" | "active" | "past_due" | "cancelled";
+    where.status = query.status as "pending_payment" | "active" | "past_due" | "paused" | "cancelled";
   }
   if (query.plan in PLANS) where.plan = query.plan;
 

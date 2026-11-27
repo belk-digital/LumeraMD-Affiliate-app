@@ -276,6 +276,24 @@ enum CustomerSignupStatus {
   active
   past_due
   cancelled
+  paused
+}
+
+// One row per email the app tried to send, for the admin "Email logs" page. It records who, what subject and
+// whether it went out, never the body: emails carry sign-in links that must not sit in a table.
+model EmailLog {
+  id         String   @id @default(cuid())
+  toEmail    String
+  subject    String
+  /// sent = handed to the email provider, logged = no provider configured (printed to the server log only), failed = rejected or unreachable
+  status     String
+  error      String?
+  providerId String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([toEmail])
+  @@map("email_logs")
 }
 
 // A customer choosing a monthly membership (plan keys live in src/lib/membership/plans.ts).

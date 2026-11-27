@@ -37,6 +37,7 @@ const STATUS_OPTIONS = [
   { value: "active", label: "Active" },
   { value: "pending_payment", label: "Awaiting payment" },
   { value: "past_due", label: "Past due" },
+  { value: "paused", label: "Paused" },
   { value: "cancelled", label: "Cancelled" },
   { value: "complimentary", label: "Complimentary" },
 ];

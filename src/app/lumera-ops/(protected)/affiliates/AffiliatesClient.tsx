@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal 
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import AddPersonButton from "../signups/_components/AddPersonModal";
 
 export function AffiliatesClient({
   initialAffiliates,
@@ -151,13 +152,16 @@ export function AffiliatesClient({
             {stats.total.total} total affiliates
           </p>
         </div>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-medium text-sm transition shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add Affiliate
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <AddPersonButton kind="rep" />
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-medium text-sm transition shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add Affiliate
+          </button>
+        </div>
       </div>
 
       {/* Stats Row */}
