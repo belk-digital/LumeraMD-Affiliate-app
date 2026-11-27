@@ -47,7 +47,7 @@ export default async function DashboardPage({
 
   const appBaseUrl = process.env.APP_BASE_URL ?? "";
   const referralLink = `${appBaseUrl}/ref/${affiliate.referralSlug}`;
-  const membershipLink = `${appBaseUrl}/customers/signup?ref=${affiliate.referralSlug}`;
+  const customerLink = `${appBaseUrl}/customers/signup?ref=${affiliate.referralSlug}`;
   const name = affiliate.displayName || affiliate.userEmail;
 
   return (
@@ -161,13 +161,13 @@ export default async function DashboardPage({
             <div className="flex flex-col gap-6 sm:flex-row">
               <div className="flex-1 min-w-0 space-y-3 text-sm">
                 <CopyableRow label="Order link" value={referralLink} />
-                <CopyableRow label="Membership link" value={membershipLink} />
+                <CopyableRow label="Customer link" value={customerLink} />
                 {affiliate.shopifyDiscountCode && (
                   <CopyableRow label="Discount code" value={affiliate.shopifyDiscountCode} mono />
                 )}
                 <p className="pt-1 text-xs text-ink/45">
                   Orders placed through your link or code are credited to you automatically. Share
-                  your membership link to invite customers to join a membership plan.
+                  your customer link to invite customers to join a membership plan.
                 </p>
               </div>
               <div className="flex flex-col items-center gap-2 sm:border-l sm:border-line sm:pl-6">

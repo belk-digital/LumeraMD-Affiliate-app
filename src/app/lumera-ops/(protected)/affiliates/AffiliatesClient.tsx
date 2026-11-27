@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
-  Users, CheckCircle2, Clock, Ban, Search, Download, Plus, 
+  Users, CheckCircle2, Clock, Ban, Search, Download, 
   ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal 
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
@@ -36,7 +36,6 @@ export function AffiliatesClient({
   const [q, setQ] = useState(searchQuery);
   const [status, setStatus] = useState(currentStatus);
   const [parent, setParent] = useState(currentParent);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
@@ -152,16 +151,7 @@ export function AffiliatesClient({
             {stats.total.total} total affiliates
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <AddPersonButton kind="rep" />
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-medium text-sm transition shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Add Affiliate
-          </button>
-        </div>
+        <AddPersonButton kind="rep" />
       </div>
 
       {/* Stats Row */}
@@ -394,9 +384,6 @@ export function AffiliatesClient({
         </div>
       </div>
 
-      {showAddModal && (
-        <AddAffiliateModal onClose={() => setShowAddModal(false)} />
-      )}
     </div>
   );
 }
@@ -436,117 +423,6 @@ function StatusBadge({ status }: { status: string }) {
     }`}>
       {status}
     </span>
-  );
-}
-
-function AddAffiliateModal({ onClose }: { onClose: () => void }) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [form, setForm] = useState({
-    displayName: "",
-    email: "",
-    status: "approved"
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    
-    try {
-      const res = await fetch("/api/lumera-ops/affiliates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
-      });
-      
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to create affiliate");
-      }
-      
-      router.refresh();
-      onClose();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-line flex items-center justify-between bg-page-bg/50">
-          <h2 className="font-heading text-lg font-bold text-ink">Add New Affiliate</h2>
-          <button onClick={onClose} className="text-ink/40 hover:text-ink transition">
-            <Ban className="w-5 h-5 rotate-45" /> {/* simple cross icon substitute */}
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="p-3 bg-error/10 text-error text-sm rounded-xl font-medium border border-error/20">
-              {error}
-            </div>
-          )}
-          
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-ink/80 block">Display Name</label>
-            <input 
-              required
-              type="text" 
-              placeholder="e.g. Kyle Belk"
-              value={form.displayName}
-              onChange={e => setForm({...form, displayName: e.target.value})}
-              className="w-full bg-white border border-line focus:border-primary/50 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-4 focus:ring-primary/10 transition"
-            />
-          </div>
-          
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-ink/80 block">Email Address</label>
-            <input 
-              required
-              type="email" 
-              placeholder="trainwithbelk@gmail.com"
-              value={form.email}
-              onChange={e => setForm({...form, email: e.target.value})}
-              className="w-full bg-white border border-line focus:border-primary/50 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-4 focus:ring-primary/10 transition"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-ink/80 block">Initial Status</label>
-            <select 
-              value={form.status}
-              onChange={e => setForm({...form, status: e.target.value})}
-              className="w-full bg-white border border-line focus:border-primary/50 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-4 focus:ring-primary/10 transition appearance-none"
-            >
-              <option value="approved">Approved</option>
-              <option value="pending">Pending</option>
-            </select>
-          </div>
-
-          <div className="pt-4 flex gap-3">
-            <button 
-              type="button" 
-              onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-line text-ink/70 hover:bg-page-bg transition"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-dark transition disabled:opacity-50"
-            >
-              {loading ? "Creating..." : "Create Affiliate"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 }
 

@@ -95,8 +95,8 @@ export function TabReferral({
               url={referralLink}
             />
             <LinkRow
-              title="Membership referral link"
-              hint="For customers who want a monthly membership. People who sign up through it are credited to this affiliate."
+              title="Customer referral link"
+              hint="For customers joining a membership plan. Customers who sign up through it are credited to this affiliate."
               url={membershipLink}
             />
             <LinkRow
