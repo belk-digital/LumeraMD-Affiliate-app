@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { portalMember } from "@/lib/portal/member";
+import { getCatalog } from "@/lib/membership/plans.server";
 
 // Outgoing notifications to the customer portal. Every membership change that matters writes a
 // PortalEvent row and tries to deliver it straight away; a failed delivery is retried with a growing
@@ -48,7 +49,7 @@ export async function emitPortalEvent(
       id: row.id,
       type,
       created: Math.floor(Date.now() / 1000),
-      data: { member: portalMember(customer), ...extra },
+      data: { member: portalMember(customer, new Date(), (await getCatalog()).plans), ...extra },
     };
     const saved = await prisma.portalEvent.update({
       where: { id: row.id },

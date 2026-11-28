@@ -1,5 +1,6 @@
 import { requireCustomer } from "@/lib/customers/requireCustomer";
-import { PLANS, TEST_KIT_PRICE, type PlanKey } from "@/lib/membership/plans";
+import { monthlyPriceFor, type PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { getWalletSummary } from "@/lib/wallet/ledger";
 import { getWalletRules } from "@/lib/wallet/service";
 import { formatPoints } from "@/lib/wallet/rules";
@@ -29,7 +30,8 @@ const OPS_EMAIL = process.env.AFFILIATE_OPS_EMAIL ?? "info@lumeramd.com";
 
 export default async function AccountOverviewPage() {
   const customer = await requireCustomer();
-  const plan = PLANS[customer.plan as PlanKey];
+  const catalog = await getCatalog();
+  const plan = catalog.plans[customer.plan as PlanKey];
   const planName = plan?.name ?? customer.plan;
   const isActive = customer.status === "active";
 
@@ -39,7 +41,7 @@ export default async function AccountOverviewPage() {
   ]);
   const included = plan?.consultations ?? 0;
   const left = Math.max(included - customer.consultationsUsed, 0);
-  const kitPrice = plan?.testKitPrice ?? TEST_KIT_PRICE;
+  const kitPrice = plan?.testKitPrice ?? catalog.testKitPrice;
   const walletAvailable = rules.enabled || wallet.accountId !== null;
 
   const statusLine: Record<string, string> = {
@@ -72,7 +74,7 @@ export default async function AccountOverviewPage() {
             value={planName}
             sub={
               <>
-                {customer.complimentary ? "Complimentary" : plan ? `${usd(plan.monthlyPrice)} / month` : ""}
+                {customer.complimentary ? "Complimentary" : plan ? `${usd(monthlyPriceFor(customer, plan))} / month` : ""}
                 {customer.status === "active" && customer.currentPeriodEnd && (
                   <span className="block">Active through {fmtDate(customer.currentPeriodEnd)}</span>
                 )}
@@ -98,7 +100,7 @@ export default async function AccountOverviewPage() {
             value={
               <>
                 {usd(kitPrice)}
-                {kitPrice < TEST_KIT_PRICE && <span className="ml-2 text-sm font-normal text-ink/40 line-through">{usd(TEST_KIT_PRICE)}</span>}
+                {kitPrice < catalog.testKitPrice && <span className="ml-2 text-sm font-normal text-ink/40 line-through">{usd(catalog.testKitPrice)}</span>}
               </>
             }
             sub={plan?.testKitPrice !== undefined ? `${planName} member price` : "Web price"}
@@ -114,7 +116,7 @@ export default async function AccountOverviewPage() {
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
                 <span className="font-heading text-3xl font-bold text-ink">{planName}</span>
-                {customer.complimentary ? <span className="ml-2 text-lg text-ink/55">Complimentary</span> : plan && <span className="ml-2 text-lg text-ink/55">{usd(plan.monthlyPrice)} / month</span>}
+                {customer.complimentary ? <span className="ml-2 text-lg text-ink/55">Complimentary</span> : plan && <span className="ml-2 text-lg text-ink/55">{usd(monthlyPriceFor(customer, plan))} / month</span>}
               </div>
               <Badge tone={MEMBERSHIP_TONE[customer.status] ?? "slate"}>{MEMBERSHIP_LABEL[customer.status] ?? customer.status}</Badge>
             </div>
@@ -197,12 +199,12 @@ export default async function AccountOverviewPage() {
           <Card title="DNA test kit" icon="flask">
             <div className="flex flex-wrap items-baseline gap-2">
               <span className="font-heading text-3xl font-bold text-ink">{usd(kitPrice)}</span>
-              {kitPrice < TEST_KIT_PRICE && <span className="text-base text-ink/40 line-through">{usd(TEST_KIT_PRICE)}</span>}
+              {kitPrice < catalog.testKitPrice && <span className="text-base text-ink/40 line-through">{usd(catalog.testKitPrice)}</span>}
             </div>
             <p className="mt-2 text-sm text-ink/60">
               {plan?.testKitPrice !== undefined
                 ? `${planName} members get the test kit for ${usd(kitPrice)}.`
-                : `Test kits are ${usd(TEST_KIT_PRICE)}. Plus members pay ${usd(PLANS.customer_plus.testKitPrice ?? TEST_KIT_PRICE)} and Premium ${usd(PLANS.customer_premium.testKitPrice ?? TEST_KIT_PRICE)}.`}
+                : `Test kits are ${usd(catalog.testKitPrice)}. Plus members pay ${usd(catalog.plans.customer_plus.testKitPrice ?? catalog.testKitPrice)} and Premium ${usd(catalog.plans.customer_premium.testKitPrice ?? catalog.testKitPrice)}.`}
             </p>
             <div className="mt-4">
               <ButtonLink href="/account/test-kit">View test kit</ButtonLink>

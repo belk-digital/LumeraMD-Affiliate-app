@@ -2,7 +2,8 @@ import { sendEmail } from "@/lib/email/send";
 import { buildNotificationEmail } from "@/lib/email/templates/notification";
 import { buildMagicLinkEmail } from "@/lib/email/templates/magic-link";
 import type { CustomerSignup } from "@/generated/prisma/client";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import { monthlyPriceFor, type PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { notifyAdminNewMember } from "@/lib/email/admin";
 import { authnetConfigured } from "@/lib/authnet/client";
 
@@ -10,7 +11,6 @@ const OPS_EMAIL = process.env.AFFILIATE_OPS_EMAIL ?? "info@lumeramd.com";
 const APP_BASE_URL = process.env.APP_BASE_URL ?? "";
 const LOGO_WHITE_URL = `${APP_BASE_URL}/lumera-logo-white.png`;
 
-const planName = (c: CustomerSignup) => PLANS[c.plan as PlanKey]?.name ?? c.plan;
 const fmtDate = (d: Date) =>
   d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
@@ -20,6 +20,8 @@ export const payLinkFor = (customer: CustomerSignup) =>
 
 /** Sent right after signup, so the customer knows what happens next. */
 export async function notifyMembershipRequested(customer: CustomerSignup) {
+  const plans = (await getCatalog()).plans;
+  const planName = (c: CustomerSignup) => plans[c.plan as PlanKey]?.name ?? c.plan;
   const payLink = payLinkFor(customer);
   await sendEmail(
     customer.email,
@@ -48,7 +50,9 @@ export async function notifyMembershipActive(
   customer: CustomerSignup,
   opts: { discountCode: string | null; firstActivation: boolean },
 ) {
-  const plan = PLANS[customer.plan as PlanKey];
+  const plans = (await getCatalog()).plans;
+  const planName = (c: CustomerSignup) => plans[c.plan as PlanKey]?.name ?? c.plan;
+  const plan = plans[customer.plan as PlanKey];
   await sendEmail(
     customer.email,
     opts.firstActivation ? "Your LumeraMD membership is active" : "LumeraMD membership payment received",
@@ -68,6 +72,8 @@ export async function notifyMembershipActive(
 }
 
 export async function notifyMembershipPastDue(customer: CustomerSignup) {
+  const plans = (await getCatalog()).plans;
+  const planName = (c: CustomerSignup) => plans[c.plan as PlanKey]?.name ?? c.plan;
   const payLink = payLinkFor(customer);
   await sendEmail(
     customer.email,
@@ -87,9 +93,11 @@ export async function notifyMembershipPastDue(customer: CustomerSignup) {
 
 /** Sent when an admin adds someone to a paid membership: it is ready, and here is where to set up the monthly payment. */
 export async function notifyMembershipInvite(customer: CustomerSignup) {
+  const plans = (await getCatalog()).plans;
+  const planName = (c: CustomerSignup) => plans[c.plan as PlanKey]?.name ?? c.plan;
   const payLink = payLinkFor(customer);
-  const plan = PLANS[customer.plan as PlanKey];
-  const price = plan ? `$${plan.monthlyPrice} per month` : "monthly";
+  const plan = plans[customer.plan as PlanKey];
+  const price = plan ? `$${plan ? monthlyPriceFor(customer, plan) : 0} per month` : "monthly";
   await sendEmail(
     customer.email,
     "Your LumeraMD membership is ready",
@@ -108,6 +116,8 @@ export async function notifyMembershipInvite(customer: CustomerSignup) {
 
 /** Sent when a sales rep is approved: their Premium membership starts with the first payment. */
 export async function notifyRepPaymentDue(customer: CustomerSignup) {
+  const plans = (await getCatalog()).plans;
+  const planName = (c: CustomerSignup) => plans[c.plan as PlanKey]?.name ?? c.plan;
   const payLink = payLinkFor(customer);
   if (!payLink) return;
   await sendEmail(
@@ -116,7 +126,7 @@ export async function notifyRepPaymentDue(customer: CustomerSignup) {
     buildNotificationEmail({
       variant: "membership-requested",
       headline: "One Last Step",
-      message: `You're approved, ${customer.firstName}! Your ${planName(customer)} membership (${PLANS[customer.plan as PlanKey] ? `$${PLANS[customer.plan as PlanKey].monthlyPrice} per month` : "monthly"}) switches on your member benefits and override commissions as soon as your first payment goes through.`,
+      message: `You're approved, ${customer.firstName}! Your ${planName(customer)} membership (${plans[customer.plan as PlanKey] ? `$${monthlyPriceFor(customer, plans[customer.plan as PlanKey])} per month` : "monthly"}) switches on your member benefits and override commissions as soon as your first payment goes through.`,
       ctaLabel: "Pay & Activate",
       ctaUrl: payLink,
       logoWhiteUrl: LOGO_WHITE_URL,
@@ -125,6 +135,8 @@ export async function notifyRepPaymentDue(customer: CustomerSignup) {
 }
 
 export async function notifyMembershipCancelled(customer: CustomerSignup) {
+  const plans = (await getCatalog()).plans;
+  const planName = (c: CustomerSignup) => plans[c.plan as PlanKey]?.name ?? c.plan;
   await sendEmail(
     customer.email,
     "Your LumeraMD membership was cancelled",
@@ -141,8 +153,10 @@ export async function notifyMembershipCancelled(customer: CustomerSignup) {
 
 /** Sent when an admin asks for the member to be emailed their payment link (to start, renew or switch back on). */
 export async function notifyMembershipPaymentLink(customer: CustomerSignup, payLink: string) {
+  const plans = (await getCatalog()).plans;
+  const planName = (c: CustomerSignup) => plans[c.plan as PlanKey]?.name ?? c.plan;
   const name = planName(customer);
-  const price = PLANS[customer.plan as PlanKey] ? `$${PLANS[customer.plan as PlanKey].monthlyPrice} per month` : "monthly";
+  const price = plans[customer.plan as PlanKey] ? `$${monthlyPriceFor(customer, plans[customer.plan as PlanKey])} per month` : "monthly";
   const copy =
     customer.status === "paused"
       ? {
@@ -183,6 +197,8 @@ export async function notifyMembershipComplimentary(
   customer: CustomerSignup,
   opts: { discountCode: string | null; firstActivation: boolean; cardStopped: boolean },
 ) {
+  const plans = (await getCatalog()).plans;
+  const planName = (c: CustomerSignup) => plans[c.plan as PlanKey]?.name ?? c.plan;
   const name = planName(customer);
   await sendEmail(
     customer.email,
@@ -204,6 +220,8 @@ export async function notifyMembershipComplimentary(
 
 /** Sent when an admin pauses a membership. */
 export async function notifyMembershipPaused(customer: CustomerSignup, opts: { cardStopped: boolean }) {
+  const plans = (await getCatalog()).plans;
+  const planName = (c: CustomerSignup) => plans[c.plan as PlanKey]?.name ?? c.plan;
   await sendEmail(
     customer.email,
     "Your LumeraMD membership is paused",
@@ -223,6 +241,8 @@ export async function notifyMembershipResumed(
   customer: CustomerSignup,
   opts: { discountCode: string | null; billingResumed: boolean },
 ) {
+  const plans = (await getCatalog()).plans;
+  const planName = (c: CustomerSignup) => plans[c.plan as PlanKey]?.name ?? c.plan;
   await sendEmail(
     customer.email,
     "Your LumeraMD membership is active again",

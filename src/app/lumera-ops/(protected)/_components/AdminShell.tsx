@@ -39,6 +39,12 @@ function buildMainNav({
       isActive: (p) => p.startsWith("/lumera-ops/signups"),
     },
     {
+      href: "/lumera-ops/plans",
+      label: "Membership plans",
+      icon: "star",
+      isActive: (p) => p.startsWith("/lumera-ops/plans"),
+    },
+    {
       href: "/lumera-ops/affiliates",
       label: "All Affiliates",
       icon: "users",

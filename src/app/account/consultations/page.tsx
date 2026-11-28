@@ -1,6 +1,7 @@
 import { requireCustomer } from "@/lib/customers/requireCustomer";
 import { prisma } from "@/lib/prisma";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import type { PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import Icon from "@/components/Icon";
 import AccountShell from "../AccountShell";
 import { affiliateIdFor } from "@/lib/customers/crossLinks";
@@ -13,7 +14,8 @@ const OPS_EMAIL = process.env.AFFILIATE_OPS_EMAIL ?? "info@lumeramd.com";
 
 export default async function ConsultationsPage() {
   const customer = await requireCustomer();
-  const plan = PLANS[customer.plan as PlanKey];
+  const catalog = await getCatalog();
+  const plan = catalog.plans[customer.plan as PlanKey];
   const included = plan?.consultations ?? 0;
   const left = Math.max(included - customer.consultationsUsed, 0);
   const history = await prisma.memberConsultation.findMany({

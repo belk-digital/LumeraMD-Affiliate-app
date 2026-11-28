@@ -1,5 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { PLANS } from "@/lib/membership/plans";
+import { DEFAULT_PLANS, isPlanKey, type MembershipPlan, type PlanKey } from "@/lib/membership/plans";
 
 // The search, filters and paging shared by the admin Signups pages and their CSV exports, so a
 // download always matches what's on screen.
@@ -62,7 +62,7 @@ export function customerWhere(query: SignupQuery): Prisma.CustomerSignupWhereInp
   } else if ((CUSTOMER_STATUS_FILTERS as readonly string[]).includes(query.status)) {
     where.status = query.status as "pending_payment" | "active" | "past_due" | "paused" | "cancelled";
   }
-  if (query.plan in PLANS) where.plan = query.plan;
+  if (isPlanKey(query.plan)) where.plan = query.plan;
 
   const since = createdSince(query.range);
   if (since) where.createdAt = { gte: since };
@@ -93,8 +93,8 @@ export function trendPercent(current30: number, previous30: number): number {
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The plan as the admin sees it. The rep plan shares the "Premium" name with the customer one. */
-export function planLabel(key: string): string {
-  const plan = PLANS[key as keyof typeof PLANS];
+export function planLabel(key: string, plans: Record<PlanKey, MembershipPlan> = DEFAULT_PLANS): string {
+  const plan = plans[key as PlanKey];
   if (!plan) return key;
   return key === "agent" ? "Premium (rep)" : plan.name;
 }

@@ -14,7 +14,8 @@ import { MousePointerClick, BarChart as BarChartIcon, DollarSign } from "lucide-
 
 import { TabReferral } from "./TabReferral";
 import { storeLandingUrl, utmParamsFor } from "@/lib/referral";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import type { PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { authnetConfigured } from "@/lib/authnet/client";
 import MembershipCard, { type MembershipSummary } from "./MembershipCard";
 import { TabCommission } from "./TabCommission";
@@ -51,7 +52,7 @@ export default async function AdminAffiliateDetailPage({
     where: { email: { equals: affiliate.userEmail, mode: "insensitive" } },
     orderBy: { createdAt: "desc" },
   });
-  const planInfo = membershipRow ? PLANS[membershipRow.plan as PlanKey] : undefined;
+  const planInfo = membershipRow ? (await getCatalog()).plans[membershipRow.plan as PlanKey] : undefined;
   const membership: MembershipSummary | null = membershipRow
     ? {
         id: membershipRow.id,

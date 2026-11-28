@@ -7,7 +7,8 @@ import { uploadFile } from "@/lib/storage";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { EMAIL_RE, resolveReferrerId } from "@/lib/signup";
 import { notifyAdminNewSalesRep } from "@/lib/email/admin";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import type { PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 
 const MAX_RESUME_BYTES = 8 * 1024 * 1024; // 8MB
 const ALLOWED_RESUME_TYPES: Record<string, string> = {
@@ -127,7 +128,7 @@ export async function POST(req: NextRequest) {
       firstName,
       lastName,
       email,
-      planName: PLANS[plan as PlanKey]?.name ?? plan,
+      planName: (await getCatalog()).plans[plan as PlanKey]?.name ?? plan,
       referrer: referrer ? (referrer.displayName ?? referrer.userEmail) : null,
     });
   } catch (err) {

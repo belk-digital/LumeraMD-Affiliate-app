@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { EMAIL_RE, resolveReferrerId } from "@/lib/signup";
-import { PLANS, isCustomerPlanKey } from "@/lib/membership/plans";
+import { isCustomerPlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { notifyMembershipRequested } from "@/lib/email/membership";
 import { authnetConfigured } from "@/lib/authnet/client";
 
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
   }
 
   // The discounted test kit is a Plus ($599) and Premium ($499) perk; Basic buys it at web price.
-  const wantsTestKit = body.wantsTestKit === true && PLANS[plan].testKitPrice !== undefined;
+  const wantsTestKit = body.wantsTestKit === true && (await getCatalog()).plans[plan].testKitPrice !== undefined;
 
   const referredByAffiliateId = await resolveReferrerId(req, referralSlug, email);
 

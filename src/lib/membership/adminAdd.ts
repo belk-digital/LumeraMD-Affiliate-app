@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { isValidName, NAME_ERROR } from "@/lib/fields";
 import { validatePhoneString } from "@/lib/phone";
 import { EMAIL_RE } from "@/lib/signup";
-import { PLANS, isCustomerPlanKey } from "@/lib/membership/plans";
+import { isCustomerPlanKey, type PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { MembershipError, grantComplimentary } from "@/lib/membership/lifecycle";
 import { notifyMembershipInvite, notifyRepPaymentDue, payLinkFor } from "@/lib/email/membership";
 import { createAffiliateFromSalesRepSignup, SalesRepApprovalError } from "@/lib/affiliates/createFromSalesRep";
@@ -94,7 +95,7 @@ async function addMember(i: AddInput): Promise<AddResult> {
   if (existing && existing.status !== "pending_payment") {
     throw new AddError("This email already has a membership.", 409);
   }
-  const wantsTestKit = i.wantsTestKit && PLANS[i.plan as keyof typeof PLANS].testKitPrice !== undefined;
+  const wantsTestKit = i.wantsTestKit && (await getCatalog()).plans[i.plan as PlanKey].testKitPrice !== undefined;
   const data = {
     firstName: i.firstName,
     lastName: i.lastName,

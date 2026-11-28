@@ -1,5 +1,6 @@
 import { requireCustomer } from "@/lib/customers/requireCustomer";
-import { PLANS, TEST_KIT_PRICE, type PlanKey } from "@/lib/membership/plans";
+import type { PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import Icon from "@/components/Icon";
 import AccountShell from "../AccountShell";
 import { affiliateIdFor } from "@/lib/customers/crossLinks";
@@ -19,9 +20,10 @@ const ABOUT = [
 
 export default async function TestKitPage() {
   const customer = await requireCustomer();
-  const plan = PLANS[customer.plan as PlanKey];
-  const kitPrice = plan?.testKitPrice ?? TEST_KIT_PRICE;
-  const discounted = kitPrice < TEST_KIT_PRICE;
+  const catalog = await getCatalog();
+  const plan = catalog.plans[customer.plan as PlanKey];
+  const kitPrice = plan?.testKitPrice ?? catalog.testKitPrice;
+  const discounted = kitPrice < catalog.testKitPrice;
   const kitUrl = process.env.TEST_KIT_URL || null;
   const memberCode =
     customer.status === "active"
@@ -44,12 +46,12 @@ export default async function TestKitPage() {
         <Card title="Your price" icon="flask">
           <div className="flex flex-wrap items-baseline gap-3">
             <span className="font-heading text-4xl font-bold text-ink">{usd(kitPrice)}</span>
-            {discounted && <span className="text-lg text-ink/40 line-through">{usd(TEST_KIT_PRICE)}</span>}
+            {discounted && <span className="text-lg text-ink/40 line-through">{usd(catalog.testKitPrice)}</span>}
           </div>
           <p className="mt-2 text-sm text-ink/60">
             {discounted
-              ? `${plan?.name} members get the test kit for ${usd(kitPrice)} instead of ${usd(TEST_KIT_PRICE)}.`
-              : `The test kit is ${usd(TEST_KIT_PRICE)}. Plus and Premium members get a lower price.`}
+              ? `${plan?.name} members get the test kit for ${usd(kitPrice)} instead of ${usd(catalog.testKitPrice)}.`
+              : `The test kit is ${usd(catalog.testKitPrice)}. Plus and Premium members get a lower price.`}
           </p>
 
           {memberCode && (

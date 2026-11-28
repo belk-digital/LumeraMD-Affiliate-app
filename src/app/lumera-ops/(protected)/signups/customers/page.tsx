@@ -9,7 +9,8 @@ import {
   planLabel,
   trendPercent,
 } from "@/lib/admin/signupFilters";
-import { PLANS, TEST_KIT_PRICE, type PlanKey } from "@/lib/membership/plans";
+import { monthlyPriceFor, type PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { authnetConfigured } from "@/lib/authnet/client";
 import { getCustomerBalances } from "@/lib/wallet/ledger";
 import { shortDate } from "../_components/fmt";
@@ -68,20 +69,21 @@ export default async function CustomersPage({
   const referrerName = new Map(referrers.map((r) => [r.id, r.displayName ?? r.userEmail]));
   const online = authnetConfigured();
 
+  const catalog = await getCatalog();
   const customers: CustomerData[] = rows.map((c) => {
-    const plan = PLANS[c.plan as PlanKey];
+    const plan = catalog.plans[c.plan as PlanKey];
     return {
       id: c.id,
       name: `${c.firstName} ${c.lastName}`.trim(),
       email: c.email,
       phone: c.phone,
-      planLabel: planLabel(c.plan),
+      planLabel: planLabel(c.plan, catalog.plans),
       planName: plan?.name ?? c.plan,
-      monthlyPrice: plan?.monthlyPrice ?? 0,
+      monthlyPrice: plan ? monthlyPriceFor(c, plan) : 0,
       discountPercent: plan?.webDiscountPercent ?? 0,
       benefits: plan?.benefits ?? [],
       wantsTestKit: c.wantsTestKit,
-      testKitPrice: plan?.testKitPrice ?? TEST_KIT_PRICE,
+      testKitPrice: plan?.testKitPrice ?? catalog.testKitPrice,
       status: c.status,
       referrer: c.referredByAffiliateId ? (referrerName.get(c.referredByAffiliateId) ?? null) : null,
       signedUp: shortDate(c.createdAt),

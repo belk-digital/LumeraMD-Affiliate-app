@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/admin/requireAdmin";
 import { prisma } from "@/lib/prisma";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import { monthlyPriceFor, type PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { authnetConfigured } from "@/lib/authnet/client";
 import { initials } from "@/components/Avatar";
 import StatusPill from "@/components/StatusPill";
@@ -75,7 +76,8 @@ export default async function SalesRepProfilePage({ params }: { params: Promise<
   ]);
 
   const name = [rep.firstName, rep.lastName].filter(Boolean).join(" ") || rep.email.split("@")[0];
-  const plan = rep.plan ? PLANS[rep.plan as PlanKey] : undefined;
+  const plan = rep.plan ? (await getCatalog()).plans[rep.plan as PlanKey] : undefined;
+  const price = plan ? (membership ? monthlyPriceFor(membership, plan) : plan.monthlyPrice) : 0;
   const parent = affiliate?.parentAffiliateId
     ? await prisma.affiliate.findUnique({
         where: { id: affiliate.parentAffiliateId },
@@ -116,7 +118,7 @@ export default async function SalesRepProfilePage({ params }: { params: Promise<
             </>
           ) : (
             <>
-              <Stat label="Plan" value={plan ? `${plan.name} · ${usd(plan.monthlyPrice)}/mo` : "—"} />
+              <Stat label="Plan" value={plan ? `${plan.name} · ${usd(price)}/mo` : "—"} />
               <Stat label="Annual gross sales" value={rep.annualGrossSales != null ? usd(rep.annualGrossSales) : "—"} />
               <Stat label="Type of sales" value={rep.salesType ?? "—"} />
             </>
@@ -135,7 +137,7 @@ export default async function SalesRepProfilePage({ params }: { params: Promise<
                 </a>
               </Row>
               <Row label="Phone">{rep.phone || "—"}</Row>
-              <Row label="Plan">{plan ? `${plan.name} (rep) · ${usd(plan.monthlyPrice)}/mo` : (rep.plan ?? "—")}</Row>
+              <Row label="Plan">{plan ? `${plan.name} (rep) · ${usd(price)}/mo` : (rep.plan ?? "—")}</Row>
               <Row label="Type of sales">{rep.salesType ?? "—"}</Row>
               <Row label="Annual gross sales">{rep.annualGrossSales != null ? usd(rep.annualGrossSales) : "—"}</Row>
               <Row label="Referred by">{sponsor ? (sponsor.displayName ?? sponsor.userEmail) : "—"}</Row>

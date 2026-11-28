@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import SignupLayout from "@/components/SignupLayout";
 import { prisma } from "@/lib/prisma";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import { monthlyPriceFor, type PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { authnetConfigured, createHostedPaymentToken, hostedPageUrl } from "@/lib/authnet/client";
 import PayRedirect from "./PayRedirect";
 
@@ -30,7 +31,8 @@ export default async function PayPage({
   // Already paid up (or free): there is nothing to pay.
   if (customer.status === "active") redirect("/account/login");
 
-  const plan = PLANS[customer.plan as PlanKey];
+  const plan = (await getCatalog()).plans[customer.plan as PlanKey];
+  const price = plan ? monthlyPriceFor(customer, plan) : 0;
 
   let token: string | null = null;
   let problem: string | null = null;
@@ -45,7 +47,7 @@ export default async function PayPage({
         email: customer.email,
         firstName: customer.firstName,
         lastName: customer.lastName,
-        amount: plan.monthlyPrice,
+        amount: price,
         description: `${plan.name} membership`,
         returnUrl: `${APP_BASE_URL}/pay/thanks`,
         cancelUrl: `${APP_BASE_URL}/pay/${customer.id}?cancelled=1`,
@@ -66,7 +68,7 @@ export default async function PayPage({
         { icon: "cart", title: "Save on every order", body: "Your member discount switches on as soon as you're active." },
       ]}
       title="Complete your payment"
-      subtitle={plan ? `${plan.name} membership, $${plan.monthlyPrice} per month.` : "Membership payment"}
+      subtitle={plan ? `${plan.name} membership, $${price} per month.` : "Membership payment"}
     >
       {problem || !token || !plan ? (
         <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{problem}</p>
@@ -84,17 +86,17 @@ export default async function PayPage({
             </div>
             <div className="flex justify-between gap-3">
               <dt>Today</dt>
-              <dd className="font-medium text-ink">${plan.monthlyPrice.toFixed(2)}</dd>
+              <dd className="font-medium text-ink">${price.toFixed(2)}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt>Then</dt>
-              <dd className="font-medium text-ink">${plan.monthlyPrice.toFixed(2)} / month</dd>
+              <dd className="font-medium text-ink">${price.toFixed(2)} / month</dd>
             </div>
           </dl>
           <PayRedirect
             actionUrl={hostedPageUrl()}
             token={token}
-            label={`Pay $${plan.monthlyPrice.toFixed(2)}`}
+            label={`Pay $${price.toFixed(2)}`}
             auto={!cancelled}
           />
           <p className="mt-4 text-xs text-ink/50">

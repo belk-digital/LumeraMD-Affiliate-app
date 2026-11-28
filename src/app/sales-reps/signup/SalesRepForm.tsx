@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import Icon from "@/components/Icon";
 import PhoneField from "@/components/PhoneField";
-import { PLANS } from "@/lib/membership/plans";
+import type { MembershipPlan } from "@/lib/membership/plans";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/35 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15";
@@ -24,10 +24,9 @@ const SALES_TYPES = [
   "Other",
 ];
 
-// Plans offered on this form. Today only Agent; add more here and the picker grows with them.
-const PLAN_OPTIONS = [PLANS.agent];
-
-export default function SalesRepForm({ referralSlug }: { referralSlug?: string }) {
+export default function SalesRepForm({ referralSlug, agentPlan }: { referralSlug?: string; agentPlan: MembershipPlan }) {
+  // Plans offered on this form. Today only the rep plan; add more here and the picker grows with them.
+  const PLAN_OPTIONS = [agentPlan];
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({
     firstName: "",

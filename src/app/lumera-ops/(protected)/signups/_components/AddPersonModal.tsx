@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import PhoneField from "@/components/PhoneField";
 import { cleanEmail, cleanName, NAME_MAX } from "@/lib/fields";
-import { CUSTOMER_PLANS, PLANS } from "@/lib/membership/plans";
+import { CUSTOMER_PLAN_KEYS, DEFAULT_PLANS, type MembershipPlan } from "@/lib/membership/plans";
 import { Backdrop, inputClass, Notice, useCopy } from "./kit";
 
 type Kind = "member" | "rep";
@@ -38,13 +38,18 @@ function AddPersonModal({ kind, onClose }: { kind: Kind; onClose: () => void }) 
     lastName: "",
     email: "",
     phone: "",
-    plan: CUSTOMER_PLANS[0].key as string,
+    plan: CUSTOMER_PLAN_KEYS[0] as string,
     wantsTestKit: false,
     sponsorId: "",
     billing: "recurring" as "recurring" | "free",
     note: "",
   });
   const [sponsors, setSponsors] = useState<{ id: string; label: string }[]>([]);
+  // The plans as currently sold; starts from the defaults and is replaced by the admin's customizations.
+  const [catalog, setCatalog] = useState<{ customerPlans: MembershipPlan[]; agent: MembershipPlan }>({
+    customerPlans: CUSTOMER_PLAN_KEYS.map((k) => DEFAULT_PLANS[k]),
+    agent: DEFAULT_PLANS.agent,
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ payLink: string | null; warnings: string[] } | null>(null);
@@ -54,9 +59,13 @@ function AddPersonModal({ kind, onClose }: { kind: Kind; onClose: () => void }) 
       .then((r) => (r.ok ? r.json() : { sponsors: [] }))
       .then((d) => setSponsors(d.sponsors ?? []))
       .catch(() => {});
+    fetch("/api/lumera-ops/plans")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setCatalog({ customerPlans: d.customerPlans, agent: d.agent }))
+      .catch(() => {});
   }, []);
 
-  const plan = kind === "rep" ? PLANS.agent : PLANS[form.plan as keyof typeof PLANS];
+  const plan = kind === "rep" ? catalog.agent : (catalog.customerPlans.find((p) => p.key === form.plan) ?? catalog.customerPlans[0]);
   const word = kind === "member" ? "member" : "sales rep";
 
   async function submit(e: React.FormEvent) {
@@ -179,7 +188,7 @@ function AddPersonModal({ kind, onClose }: { kind: Kind; onClose: () => void }) 
               <div>
                 <label className={labelClass}>Plan</label>
                 <select className={inputClass} value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value, wantsTestKit: false })}>
-                  {CUSTOMER_PLANS.map((p) => (
+                  {catalog.customerPlans.map((p) => (
                     <option key={p.key} value={p.key}>
                       {p.name} - ${p.monthlyPrice}/month
                     </option>
@@ -199,7 +208,7 @@ function AddPersonModal({ kind, onClose }: { kind: Kind; onClose: () => void }) 
               </div>
             ) : (
               <div className="rounded-lg bg-page-bg px-3.5 py-2.5 text-sm text-ink/70">
-                Plan: <b className="text-ink">{PLANS.agent.name}</b> - ${PLANS.agent.monthlyPrice}/month, with override commissions.
+                Plan: <b className="text-ink">{catalog.agent.name}</b> - ${catalog.agent.monthlyPrice}/month, with override commissions.
               </div>
             )}
 

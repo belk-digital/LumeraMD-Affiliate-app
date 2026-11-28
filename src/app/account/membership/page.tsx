@@ -1,6 +1,7 @@
 import { requireCustomer } from "@/lib/customers/requireCustomer";
 import { prisma } from "@/lib/prisma";
-import { CUSTOMER_PLANS, PLANS, TEST_KIT_PRICE, type PlanKey } from "@/lib/membership/plans";
+import { monthlyPriceFor, type PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import Icon from "@/components/Icon";
 import AccountShell from "../AccountShell";
 import { affiliateIdFor } from "@/lib/customers/crossLinks";
@@ -14,13 +15,14 @@ const OPS_EMAIL = process.env.AFFILIATE_OPS_EMAIL ?? "info@lumeramd.com";
 
 export default async function MembershipPage() {
   const customer = await requireCustomer();
-  const plan = PLANS[customer.plan as PlanKey];
+  const catalog = await getCatalog();
+  const plan = catalog.plans[customer.plan as PlanKey];
   const payments = await prisma.membershipPayment.findMany({
     where: { customerId: customer.id },
     orderBy: { createdAt: "desc" },
     take: 12,
   });
-  const currentIndex = CUSTOMER_PLANS.findIndex((p) => p.key === customer.plan);
+  const currentIndex = catalog.customerPlans.findIndex((p) => p.key === customer.plan);
   const payLink = authnetConfigured() ? `/pay/${customer.id}` : null;
 
   return (
@@ -36,7 +38,7 @@ export default async function MembershipPage() {
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
               <span className="font-heading text-3xl font-bold text-ink">{plan?.name ?? customer.plan}</span>
-              {customer.complimentary ? <span className="ml-2 text-lg text-ink/55">Complimentary</span> : plan && <span className="ml-2 text-lg text-ink/55">{usd(plan.monthlyPrice)} / month</span>}
+              {customer.complimentary ? <span className="ml-2 text-lg text-ink/55">Complimentary</span> : plan && <span className="ml-2 text-lg text-ink/55">{usd(monthlyPriceFor(customer, plan))} / month</span>}
             </div>
             <Badge tone={MEMBERSHIP_TONE[customer.status] ?? "slate"}>{MEMBERSHIP_LABEL[customer.status] ?? customer.status}</Badge>
           </div>
@@ -81,7 +83,7 @@ export default async function MembershipPage() {
         {currentIndex >= 0 && (
         <Card title="Compare plans" icon="pie">
           <div className="grid gap-4 md:grid-cols-3">
-            {CUSTOMER_PLANS.map((p, i) => {
+            {catalog.customerPlans.map((p, i) => {
               const current = p.key === customer.plan;
               const verb = i > currentIndex ? "Request upgrade" : "Request downgrade";
               return (
@@ -122,7 +124,7 @@ export default async function MembershipPage() {
             })}
           </div>
           <p className="mt-3 text-xs text-ink/45">
-            Plan changes are handled by our team. Test kit list price is {usd(TEST_KIT_PRICE)}.
+            Plan changes are handled by our team. Test kit list price is {usd(catalog.testKitPrice)}.
           </p>
         </Card>
         )}

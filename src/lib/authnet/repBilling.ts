@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { CustomerSignup } from "@/generated/prisma/client";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import { monthlyPriceFor, type PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { AuthnetError, cancelSubscription, createMonthlySubscription } from "@/lib/authnet/client";
 
 // Pausing a suspended rep's $79 Premium billing. Authorize.net's API can only cancel a subscription
@@ -46,7 +47,7 @@ export async function resumeRepBilling(affiliate: { userEmail: string }): Promis
   // Only members who were being billed by card have a saved one; manual and free members are left alone.
   if (!member.authnetCustomerProfileId || !member.authnetPaymentProfileId) return [];
 
-  const plan = PLANS.agent;
+  const plan = (await getCatalog()).plans.agent;
   const covered = member.status === "active" && member.currentPeriodEnd && member.currentPeriodEnd > new Date();
   if (!covered) {
     return [
@@ -58,7 +59,7 @@ export async function resumeRepBilling(affiliate: { userEmail: string }): Promis
     const subscriptionId = await createMonthlySubscription({
       customerId: member.id,
       name: `${plan.name} membership`,
-      amount: plan.monthlyPrice,
+      amount: monthlyPriceFor(member, plan),
       startDate: member.currentPeriodEnd!,
       customerProfileId: member.authnetCustomerProfileId,
       paymentProfileId: member.authnetPaymentProfileId,
@@ -88,13 +89,13 @@ export async function resumeMemberCardBilling(member: CustomerSignup): Promise<{
   if (!member.authnetCustomerProfileId || !member.authnetPaymentProfileId || !member.currentPeriodEnd) {
     return { started: false, warnings: [] };
   }
-  const plan = PLANS[member.plan as PlanKey];
+  const plan = (await getCatalog()).plans[member.plan as PlanKey];
   if (!plan) return { started: false, warnings: [] };
   try {
     const subscriptionId = await createMonthlySubscription({
       customerId: member.id,
       name: `${plan.name} membership`,
-      amount: plan.monthlyPrice,
+      amount: monthlyPriceFor(member, plan),
       startDate: member.currentPeriodEnd,
       customerProfileId: member.authnetCustomerProfileId,
       paymentProfileId: member.authnetPaymentProfileId,

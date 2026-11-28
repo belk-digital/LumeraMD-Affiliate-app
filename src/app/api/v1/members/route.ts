@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { prisma } from "@/lib/prisma";
 import { requirePortalKey } from "@/lib/portal/auth";
 import { portalMember } from "@/lib/portal/member";
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
   const denied = await requirePortalKey(req);
   if (denied) return denied;
 
+  const plans = (await getCatalog()).plans;
   const params = req.nextUrl.searchParams;
   const email = params.get("email")?.trim();
 
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
     });
     const row = rows.find((r) => r.status !== "cancelled") ?? rows[0];
     if (!row) return NextResponse.json({ error: "not_found" }, { status: 404, headers: noStore });
-    return NextResponse.json({ member: portalMember(row) }, { headers: noStore });
+    return NextResponse.json({ member: portalMember(row, new Date(), plans) }, { headers: noStore });
   }
 
   const limit = Math.min(Math.max(parseInt(params.get("limit") ?? "100", 10) || 100, 1), 500);
@@ -67,7 +69,7 @@ export async function GET(req: NextRequest) {
   const last = page[page.length - 1];
   return NextResponse.json(
     {
-      members: page.map((r) => portalMember(r)),
+      members: page.map((r) => portalMember(r, new Date(), plans)),
       next_cursor:
         rows.length > limit && last
           ? Buffer.from(`${last.updatedAt.toISOString()}|${last.id}`).toString("base64url")

@@ -1,6 +1,7 @@
 import SignupLayout from "@/components/SignupLayout";
 import { getInviter } from "@/lib/signup";
 import SalesRepForm from "./SalesRepForm";
+import { getCatalog } from "@/lib/membership/plans.server";
 
 export const metadata = { title: "Become an affiliate · LumeraMD" };
 
@@ -10,6 +11,7 @@ export default async function SalesRepSignupPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const inviter = await getInviter((await searchParams).ref, { forTeam: true });
+  const agentPlan = (await getCatalog()).plans.agent;
 
   return (
     <SignupLayout
@@ -31,7 +33,7 @@ export default async function SalesRepSignupPage({
             : "You were invited by a LumeraMD affiliate."}
         </p>
       )}
-      <SalesRepForm referralSlug={inviter?.slug} />
+      <SalesRepForm referralSlug={inviter?.slug} agentPlan={agentPlan} />
     </SignupLayout>
   );
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import Icon from "@/components/Icon";
 import PhoneField from "@/components/PhoneField";
-import { CUSTOMER_PLANS, PLANS, TEST_KIT_PRICE, type CustomerPlanKey } from "@/lib/membership/plans";
+import type { CustomerPlanKey, MembershipPlan } from "@/lib/membership/plans";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/35 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15";
@@ -17,7 +17,16 @@ const PLAN_BADGES: Partial<Record<CustomerPlanKey, string>> = {
   customer_premium: "Best Value",
 };
 
-export default function CustomerForm({ referralSlug }: { referralSlug?: string }) {
+export default function CustomerForm({
+  referralSlug,
+  plans,
+  testKitPrice,
+}: {
+  referralSlug?: string;
+  /** The customer plans as currently sold (admins can customize them). */
+  plans: MembershipPlan[];
+  testKitPrice: number;
+}) {
   const [submitted, setSubmitted] = useState(false);
   const [plan, setPlan] = useState<CustomerPlanKey | null>(null);
   const [wantsTestKit, setWantsTestKit] = useState(false);
@@ -25,7 +34,7 @@ export default function CustomerForm({ referralSlug }: { referralSlug?: string }
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // Plans with a member price on the test kit (Plus and Premium) get the "add a test kit" option.
-  const kitPrice = plan ? PLANS[plan].testKitPrice : undefined;
+  const kitPrice = plan ? plans.find((p) => p.key === plan)?.testKitPrice : undefined;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,7 +73,7 @@ export default function CustomerForm({ referralSlug }: { referralSlug?: string }
         <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
           <Icon name="check" className="h-6 w-6" strokeWidth={2.4} />
         </span>
-        <h2 className="font-heading text-lg font-semibold text-ink">{PLANS[plan].name} membership requested</h2>
+        <h2 className="font-heading text-lg font-semibold text-ink">{plans.find((p) => p.key === plan)?.name} membership requested</h2>
         <p className="mt-1 text-sm text-ink/60">
           We&apos;ve got your details. We&apos;ll email you the next steps to start your membership.
         </p>
@@ -126,7 +135,7 @@ export default function CustomerForm({ referralSlug }: { referralSlug?: string }
       <fieldset>
         <legend className="mb-3 font-heading text-base font-semibold text-ink">Membership</legend>
         <div className="grid gap-3 pt-2 md:grid-cols-3">
-          {CUSTOMER_PLANS.map((p) => {
+          {plans.map((p) => {
             const selected = plan === p.key;
             return (
               <label
@@ -192,7 +201,7 @@ export default function CustomerForm({ referralSlug }: { referralSlug?: string }
           />
           <span>
             Add a test kit for <strong>${kitPrice}</strong>{" "}
-            <span className="text-ink/50 line-through">${TEST_KIT_PRICE}</span>
+            <span className="text-ink/50 line-through">${testKitPrice}</span>
           </span>
         </label>
       )}

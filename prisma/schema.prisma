@@ -279,6 +279,34 @@ enum CustomerSignupStatus {
   paused
 }
 
+// What an admin has customized about a membership package. A plan with no row here uses the defaults in
+// src/lib/membership/plans.ts. Edited on the admin Plans page; new signups and new payments read the current values.
+model MembershipPlanConfig {
+  key                String   @id // agent | customer_basic | customer_plus | customer_premium
+  name               String
+  monthlyPrice       Float
+  listPrice          Float?
+  webDiscountPercent Int
+  consultations      Int
+  testKitPrice       Float?
+  overrideEligible   Boolean
+  benefits           String[]
+  updatedAt          DateTime @updatedAt
+  updatedBy          String?
+
+  @@map("membership_plan_configs")
+}
+
+// Program-wide membership numbers that are not part of one plan (the standard test kit price).
+model MembershipSettings {
+  id           String   @id @default("global")
+  testKitPrice Float?
+  updatedAt    DateTime @updatedAt
+  updatedBy    String?
+
+  @@map("membership_settings")
+}
+
 // One row per email the app tried to send, for the admin "Email logs" page. It records who, what subject and
 // whether it went out, never the body: emails carry sign-in links that must not sit in a table.
 model EmailLog {
@@ -333,6 +361,9 @@ model CustomerSignup {
   authnetCustomerProfileId String?
   authnetPaymentProfileId  String?
   authnetSubscriptionId    String?              @unique
+
+  // The monthly price fixed when they first paid, so changing a plan price on the admin Plans page only affects new signups.
+  lockedMonthlyPrice       Float?
 
   payments              MembershipPayment[]
   loginTokens           CustomerLoginToken[]

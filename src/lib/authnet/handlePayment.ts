@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { CustomerSignup } from "@/generated/prisma/client";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import { monthlyPriceFor, type PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { recordMembershipPayment, type LifecycleOptions } from "@/lib/membership/lifecycle";
 import {
   cancelSubscription,
@@ -100,7 +101,7 @@ async function setUpRenewals(
   firstRenewal: Date,
   retry: boolean,
 ): Promise<string> {
-  const plan = PLANS[customer.plan as PlanKey];
+  const plan = (await getCatalog()).plans[customer.plan as PlanKey];
   if (!plan) throw new Error(`Unknown plan "${customer.plan}" for ${customer.email}`);
 
   // On a webhook retry for this same payment the card is already saved (Authorize.net refuses to
@@ -120,7 +121,7 @@ async function setUpRenewals(
   const subscriptionId = await createMonthlySubscription({
     customerId: customer.id,
     name: `${plan.name} membership`,
-    amount: plan.monthlyPrice,
+    amount: monthlyPriceFor(customer, plan),
     startDate: firstRenewal,
     ...profile,
   });

@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrResponse } from "@/lib/admin/requireAdmin";
 import { customerWhere, parseSignupQuery, planLabel, repWhere } from "@/lib/admin/signupFilters";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import { monthlyPriceFor, type PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 
 const MAX_ROWS = 5000;
 
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest) {
   const query = parseSignupQuery(params);
   const ids = (params.get("ids") ?? "").split(",").filter(Boolean).slice(0, 500);
   const order = query.sort === "oldest" ? "asc" : "desc";
+  const plans = (await getCatalog()).plans;
 
   const referrers = await prisma.affiliate.findMany({ select: { id: true, displayName: true, userEmail: true } });
   const referrerName = new Map(referrers.map((r) => [r.id, r.displayName ?? r.userEmail]));
@@ -46,8 +48,8 @@ export async function GET(req: NextRequest) {
         `${c.firstName} ${c.lastName}`.trim(),
         c.email,
         c.phone,
-        planLabel(c.plan),
-        PLANS[c.plan as PlanKey]?.monthlyPrice,
+        planLabel(c.plan, plans),
+        plans[c.plan as PlanKey] ? monthlyPriceFor(c, plans[c.plan as PlanKey]) : "",
         c.status,
         c.complimentary ? "yes" : "no",
         c.currentPeriodEnd,
@@ -71,7 +73,7 @@ export async function GET(req: NextRequest) {
         r.phone,
         r.salesType,
         r.annualGrossSales,
-        r.plan ? planLabel(r.plan) : "",
+        r.plan ? planLabel(r.plan, plans) : "",
         r.status,
         r.referredByAffiliateId ? referrerName.get(r.referredByAffiliateId) : "",
         r.reviewNotes,

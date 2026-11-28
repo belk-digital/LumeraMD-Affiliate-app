@@ -1,5 +1,5 @@
 import type { CustomerSignup } from "@/generated/prisma/client";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import { DEFAULT_PLANS, type MembershipPlan, type PlanKey } from "@/lib/membership/plans";
 
 // The member as the customer portal sees it. Used by the read API and by every outgoing event, so a
 // lookup and a notification always agree. Deliberately small: no names, phone or discount codes.
@@ -32,8 +32,8 @@ export function paymentStatus(c: CustomerSignup, now = new Date()): PortalPaymen
   return "paid";
 }
 
-export function portalMember(c: CustomerSignup, now = new Date()) {
-  const plan = PLANS[c.plan as PlanKey];
+export function portalMember(c: CustomerSignup, now = new Date(), plans: Record<PlanKey, MembershipPlan> = DEFAULT_PLANS) {
+  const plan = plans[c.plan as PlanKey];
   const payment_status = paymentStatus(c, now);
   return {
     id: c.id,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrResponse } from "@/lib/admin/requireAdmin";
 import { portalMember } from "@/lib/portal/member";
@@ -19,5 +20,5 @@ export async function POST(req: NextRequest) {
   });
   const row = rows.find((r) => r.status !== "cancelled") ?? rows[0];
   if (!row) return NextResponse.json({ error: "No member with that email." }, { status: 404 });
-  return NextResponse.json({ member: portalMember(row) });
+  return NextResponse.json({ member: portalMember(row, new Date(), (await getCatalog()).plans) });
 }

@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import type { CustomerSignup, MembershipPayment } from "@/generated/prisma/client";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import type { PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { createDiscountCode, deleteDiscountCodeByString } from "@/lib/shopify/client";
 import { attributeOrder } from "@/lib/affiliates/commission";
 import { awardMembershipPoints } from "@/lib/wallet/service";
@@ -81,7 +82,7 @@ async function ensureMemberDiscount(
   opts: LifecycleOptions,
 ): Promise<{ customer: CustomerSignup; error?: string }> {
   if (customer.memberDiscountActive && customer.memberDiscountCode) return { customer };
-  const plan = PLANS[customer.plan as PlanKey];
+  const plan = (await getCatalog()).plans[customer.plan as PlanKey];
   if (!plan || plan.webDiscountPercent <= 0) return { customer };
 
   const hadCode = !!customer.memberDiscountCode;
@@ -186,6 +187,8 @@ export async function recordMembershipPayment(
   const periodEnd = addOneMonth(periodStart);
   const firstActivation = customer.activatedAt === null;
 
+  // The price they pay is fixed the first time they pay, so a later change to the plan only affects new signups.
+  const priceNow = (await getCatalog()).plans[customer.plan as PlanKey]?.monthlyPrice ?? null;
   const { payment, updated } = await prisma.$transaction(async (tx) => {
     const payment = await tx.membershipPayment.create({
       data: {
@@ -206,6 +209,7 @@ export async function recordMembershipPayment(
         cancelledAt: null,
         currentPeriodEnd: periodEnd,
         complimentary: false,
+        lockedMonthlyPrice: customer.lockedMonthlyPrice ?? priceNow,
       },
     });
     return { payment, updated };
@@ -265,7 +269,7 @@ async function creditReferrer(customer: CustomerSignup, payment: MembershipPayme
   });
   if (!settings.membershipCommissionEnabled) return;
 
-  const plan = PLANS[customer.plan as PlanKey];
+  const plan = (await getCatalog()).plans[customer.plan as PlanKey];
   await attributeOrder({
     order: {
       id: `membership:${payment.id}`,
@@ -508,7 +512,7 @@ export async function adjustConsultationsUsed(
   opts: { note?: string; adminEmail?: string } = {},
 ) {
   const customer = await getCustomer(customerId);
-  const included = PLANS[customer.plan as PlanKey]?.consultations ?? 0;
+  const included = (await getCatalog()).plans[customer.plan as PlanKey]?.consultations ?? 0;
   if (included === 0) {
     throw new MembershipError("This plan doesn't include consultations.", 400);
   }

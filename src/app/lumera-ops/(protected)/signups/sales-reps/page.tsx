@@ -9,7 +9,8 @@ import {
   repWhere,
   trendPercent,
 } from "@/lib/admin/signupFilters";
-import { PLANS, type PlanKey } from "@/lib/membership/plans";
+import type { PlanKey } from "@/lib/membership/plans";
+import { getCatalog } from "@/lib/membership/plans.server";
 import { authnetConfigured } from "@/lib/authnet/client";
 import { shortDate, usd } from "../_components/fmt";
 import RepsClient from "./RepsClient";
@@ -72,8 +73,9 @@ export default async function SalesRepsPage({
   for (const m of memberships) if (!membershipByEmail.has(m.email.toLowerCase())) membershipByEmail.set(m.email.toLowerCase(), m);
   const online = authnetConfigured();
 
+  const catalog = await getCatalog();
   const reps: RepData[] = rows.map((r) => {
-    const plan = r.plan ? PLANS[r.plan as PlanKey] : undefined;
+    const plan = r.plan ? catalog.plans[r.plan as PlanKey] : undefined;
     const member = r.linkedAffiliateId ? membershipByEmail.get(r.email.toLowerCase()) : undefined;
     return {
       id: r.id,
@@ -82,7 +84,7 @@ export default async function SalesRepsPage({
       phone: r.phone,
       annualGrossSales: r.annualGrossSales,
       salesType: r.salesType,
-      plan: r.plan ? (plan ? `${planLabel(r.plan)} · ${usd(plan.monthlyPrice)}/mo` : r.plan) : null,
+      plan: r.plan ? (plan ? `${planLabel(r.plan, catalog.plans)} · ${usd(plan.monthlyPrice)}/mo` : r.plan) : null,
       hasResume: !!r.resumeStorageKey,
       resumeFileName: r.resumeFileName,
       referrer: r.referredByAffiliateId ? (referrerName.get(r.referredByAffiliateId) ?? null) : null,
